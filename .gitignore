@@ -1,4 +1,6 @@
 .env
 env/
+.venv/
 meroshare/
-.vscode
+.vscode/
+__pycache__/

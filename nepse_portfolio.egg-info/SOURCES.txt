@@ -1,0 +1,8 @@
+README.md
+main.py
+pyproject.toml
+nepse_portfolio.egg-info/PKG-INFO
+nepse_portfolio.egg-info/SOURCES.txt
+nepse_portfolio.egg-info/dependency_links.txt
+nepse_portfolio.egg-info/requires.txt
+nepse_portfolio.egg-info/top_level.txt

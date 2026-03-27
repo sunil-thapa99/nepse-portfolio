@@ -1,0 +1,19 @@
+[project]
+name = "nepse-portfolio"
+version = "0.1.0"
+description = "Download MeroShare transaction history to CSV via Selenium"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.0,<3",
+    "python-dotenv>=1.0",
+    "selenium>=4.15",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["main"]
+
