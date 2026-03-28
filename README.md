@@ -66,3 +66,23 @@ where `<username>` is derived from `MEROSHARE_USERNAME` (sanitized for the files
 
 Exports land under `meroshare/` by default (that directory is gitignored). Each row includes a `scraped_at` timestamp column.
 
+## Transaction dashboard (React)
+
+A local-only viewer lives in [`web/`](web/). It parses the same MeroShare CSV in the browser (no upload to a server).
+
+```bash
+cd web
+npm install
+npm run dev
+```
+
+Then open the URL Vite prints (usually `http://localhost:5173`), click **Load CSV**, and choose your export.
+
+Optional: copy a CSV to `web/public/sample.csv` for experiments; you can add a `fetch("/sample.csv")` in dev if you want it to load automatically.
+
+```bash
+cd web
+npm run build   # production build to web/dist
+npm test        # unit tests (parser aggregates)
+```
+
