@@ -11,7 +11,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import type { ParsedTransaction, ScripAggregate, TxCategory } from "../lib/types";
+import { ratesForTransactions } from "../lib/matchTxPurchaseRate";
+import type {
+  ParsedPurchaseLine,
+  ParsedTransaction,
+  ScripAggregate,
+  TxCategory,
+} from "../lib/types";
 
 const CATEGORY_ORDER: TxCategory[] = [
   "IPO",
@@ -36,7 +42,15 @@ const CATEGORY_COLORS: Record<TxCategory, string> = {
 interface StockDetailProps {
   aggregate: ScripAggregate;
   transactions: ParsedTransaction[];
+  purchaseLines: ParsedPurchaseLine[];
   onClose: () => void;
+}
+
+function formatNpr(n: number): string {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
 }
 
 function buildBalanceSeries(txs: ParsedTransaction[]) {
@@ -54,8 +68,15 @@ function buildBalanceSeries(txs: ParsedTransaction[]) {
 export function StockDetail({
   aggregate,
   transactions,
+  purchaseLines,
   onClose,
 }: StockDetailProps) {
+  const txRates = useMemo(
+    () =>
+      ratesForTransactions(aggregate.scrip, transactions, purchaseLines),
+    [aggregate.scrip, transactions, purchaseLines]
+  );
+
   const balanceSeries = useMemo(
     () => buildBalanceSeries(transactions),
     [transactions]
@@ -97,6 +118,12 @@ export function StockDetail({
               Current {aggregate.currentUnits.toLocaleString()} units · Sold
               lifetime {aggregate.lifetimeSoldUnits.toLocaleString()}
             </p>
+            {aggregate.waccNPR != null && aggregate.totalInvestedNPR != null && (
+              <p className="mt-1 text-sm text-slate-300">
+                WACC {formatNpr(aggregate.waccNPR)} NPR · Cost basis{" "}
+                {formatNpr(aggregate.totalInvestedNPR)} NPR
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -208,19 +235,22 @@ export function StockDetail({
               All transactions (oldest first)
             </h3>
             <div className="overflow-x-auto rounded-lg border border-slate-700/80">
-              <table className="w-full min-w-[720px] text-left text-xs sm:text-sm">
+              <table className="w-full min-w-[800px] text-left text-xs sm:text-sm">
                 <thead className="bg-surface-overlay/80">
                   <tr className="text-slate-400">
                     <th className="px-3 py-2 font-medium">Date</th>
                     <th className="px-3 py-2 font-medium">Type</th>
                     <th className="px-3 py-2 font-medium">Credit</th>
                     <th className="px-3 py-2 font-medium">Debit</th>
+                    <th className="px-3 py-2 font-medium">Rate (NPR)</th>
                     <th className="px-3 py-2 font-medium">Balance</th>
                     <th className="px-3 py-2 font-medium">Description</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((tx) => (
+                  {transactions.map((tx, i) => {
+                    const rate = txRates[i];
+                    return (
                     <tr
                       key={tx.sn}
                       className="border-t border-slate-800/80 hover:bg-surface-overlay/40"
@@ -239,6 +269,9 @@ export function StockDetail({
                       <td className="px-3 py-2 font-mono tabular-nums text-rose-300/90">
                         {tx.debit > 0 ? tx.debit.toLocaleString() : "—"}
                       </td>
+                      <td className="px-3 py-2 font-mono tabular-nums text-slate-300/90">
+                        {rate != null ? formatNpr(rate) : "—"}
+                      </td>
                       <td className="px-3 py-2 font-mono tabular-nums text-slate-200">
                         {tx.balanceAfter.toLocaleString()}
                       </td>
@@ -246,7 +279,8 @@ export function StockDetail({
                         {tx.description}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

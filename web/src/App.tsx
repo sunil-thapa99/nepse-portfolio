@@ -3,7 +3,10 @@ import {
   aggregatePortfolio,
   portfolioTotalSoldUnits,
 } from "./lib/aggregatePortfolio";
+import { applyPurchaseCostsToAggregates } from "./lib/applyPurchaseCosts";
+import { pairMeroshareCsvsFromFiles } from "./lib/pairMeroshareCsvs";
 import { parseMeroshareCsv } from "./lib/parseMeroshare";
+import { parsePurchaseCsv } from "./lib/parsePurchaseCsv";
 import type { PortfolioResult, ScripAggregate } from "./lib/types";
 import { HoldingsTable } from "./components/HoldingsTable";
 import { SoldSections } from "./components/SoldSections";
@@ -15,33 +18,79 @@ function matchesFilter(scrip: string, q: string): boolean {
   return scrip.toLowerCase().includes(q.trim().toLowerCase());
 }
 
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function buildPortfolio(
+  rawTxCsv: string,
+  rawPurchaseCsv: string | null
+): PortfolioResult {
+  const txs = parseMeroshareCsv(rawTxCsv);
+  const result = aggregatePortfolio(txs);
+  if (rawPurchaseCsv) {
+    const lines = parsePurchaseCsv(rawPurchaseCsv);
+    applyPurchaseCostsToAggregates(result.byScrip, result.transactions, lines);
+  }
+  return result;
+}
+
+/** When portfolio is null, pinpoints which step failed (labeled for UI). */
+function diagnosePortfolioFailure(
+  rawTxCsv: string,
+  rawPurchaseCsv: string | null
+): string {
+  let txs;
+  try {
+    txs = parseMeroshareCsv(rawTxCsv);
+  } catch (e) {
+    return `Transactions CSV: ${errMsg(e)}`;
+  }
+  let result;
+  try {
+    result = aggregatePortfolio(txs);
+  } catch (e) {
+    return `Portfolio: ${errMsg(e)}`;
+  }
+  if (rawPurchaseCsv) {
+    let lines;
+    try {
+      lines = parsePurchaseCsv(rawPurchaseCsv);
+    } catch (e) {
+      return `Purchase source CSV: ${errMsg(e)}`;
+    }
+    try {
+      applyPurchaseCostsToAggregates(result.byScrip, result.transactions, lines);
+    } catch (e) {
+      return `Portfolio: ${errMsg(e)}`;
+    }
+  }
+  return "Could not build portfolio.";
+}
+
 export default function App() {
-  const [rawCsv, setRawCsv] = useState<string | null>(null);
+  const [rawTxCsv, setRawTxCsv] = useState<string | null>(null);
+  const [rawPurchaseCsv, setRawPurchaseCsv] = useState<string | null>(null);
+  const [loadHint, setLoadHint] = useState<string | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
   const [selectedScrip, setSelectedScrip] = useState<string | null>(null);
 
   const portfolio: PortfolioResult | null = useMemo(() => {
-    if (!rawCsv) return null;
+    if (!rawTxCsv) return null;
     try {
-      const txs = parseMeroshareCsv(rawCsv);
-      return aggregatePortfolio(txs);
-    } catch (e) {
+      return buildPortfolio(rawTxCsv, rawPurchaseCsv);
+    } catch {
       return null;
     }
-  }, [rawCsv]);
+  }, [rawTxCsv, rawPurchaseCsv]);
 
   const loadError = useMemo(() => {
-    if (!rawCsv) return null;
+    if (!rawTxCsv) return null;
     if (portfolio) return null;
-    try {
-      parseMeroshareCsv(rawCsv);
-    } catch (e) {
-      return e instanceof Error ? e.message : String(e);
-    }
-    return "Could not parse CSV.";
-  }, [rawCsv, portfolio]);
+    return diagnosePortfolioFailure(rawTxCsv, rawPurchaseCsv);
+  }, [rawTxCsv, rawPurchaseCsv, portfolio]);
 
   const displayError = parseError ?? loadError;
 
@@ -79,14 +128,24 @@ export default function App() {
         openPositions: 0,
         totalOpenUnits: 0,
         portfolioSoldUnits: 0,
+        totalCostBasisNPR: null as number | null,
       };
     }
     const all = portfolio.orderedScrips.map((s) => portfolio.byScrip.get(s)!);
     const open = all.filter((a) => a.currentUnits > 0);
+    let costSum = 0;
+    let anyCost = false;
+    for (const a of open) {
+      if (a.totalInvestedNPR != null) {
+        costSum += a.totalInvestedNPR;
+        anyCost = true;
+      }
+    }
     return {
       openPositions: open.length,
       totalOpenUnits: open.reduce((s, a) => s + a.currentUnits, 0),
       portfolioSoldUnits: portfolioTotalSoldUnits(portfolio.transactions),
+      totalCostBasisNPR: anyCost ? costSum : null,
     };
   }, [portfolio]);
 
@@ -100,21 +159,34 @@ export default function App() {
     return portfolio.transactions.filter((t) => t.scrip === selectedScrip);
   }, [portfolio, selectedScrip]);
 
-  const onFile = useCallback((file: File | null) => {
+  const purchaseLines = useMemo(() => {
+    if (!rawPurchaseCsv) return [];
+    try {
+      return parsePurchaseCsv(rawPurchaseCsv);
+    } catch {
+      return [];
+    }
+  }, [rawPurchaseCsv]);
+
+  const loadFromFileList = useCallback(async (files: FileList | null) => {
     setParseError(null);
-    if (!file) {
-      setRawCsv(null);
+    if (!files || files.length === 0) {
+      setRawTxCsv(null);
+      setRawPurchaseCsv(null);
+      setLoadHint(null);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const text = typeof reader.result === "string" ? reader.result : "";
-      setRawCsv(text);
-    };
-    reader.onerror = () => {
-      setParseError("Failed to read file.");
-    };
-    reader.readAsText(file, "UTF-8");
+    try {
+      const paired = await pairMeroshareCsvsFromFiles(files);
+      setRawTxCsv(paired.transactionsText);
+      setRawPurchaseCsv(paired.purchaseText);
+      setLoadHint(paired.hint);
+    } catch (e) {
+      setRawTxCsv(null);
+      setRawPurchaseCsv(null);
+      setLoadHint(null);
+      setParseError(e instanceof Error ? e.message : String(e));
+    }
   }, []);
 
   return (
@@ -126,38 +198,46 @@ export default function App() {
               NEPSE portfolio
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              MeroShare transaction history — units, sells, and drill-down.
+              MeroShare transaction history and purchase source — WACC from FIFO cost.
             </p>
           </div>
-          <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-600 bg-surface-overlay px-4 py-2.5 text-sm text-slate-200 transition hover:border-accent/50 hover:bg-slate-800/50">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              className="sr-only"
-              onChange={(e) => onFile(e.target.files?.[0] ?? null)}
-            />
-            <span className="font-medium text-accent">Load CSV</span>
-            <span className="text-slate-500">MeroShare export</span>
+          <label className="flex cursor-pointer flex-col gap-1 rounded-xl border border-slate-600 bg-surface-overlay px-4 py-2.5 text-sm text-slate-200 transition hover:border-accent/50 hover:bg-slate-800/50 sm:items-end sm:text-right">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                multiple
+                className="sr-only"
+                onChange={(e) => loadFromFileList(e.target.files)}
+              />
+              <span className="font-medium text-accent">Load MeroShare exports</span>
+            </div>
+            <span className="text-xs text-slate-500">
+              Select <code className="font-mono text-slate-400">*_transactions.csv</code> and{" "}
+              <code className="font-mono text-slate-400">*_purchase_sources.csv</code> together
+              (Ctrl/Cmd+click). Purchase pairs by filename and unlocks WACC.
+            </span>
           </label>
         </div>
       </header>
 
       <main className="mx-auto max-w-6xl space-y-10 px-4 py-8">
-        {!rawCsv && (
+        {!rawTxCsv && (
           <div className="rounded-2xl border border-dashed border-slate-600 bg-surface-raised/50 p-10 text-center">
             <p className="text-slate-400">
-              Export <strong className="text-slate-300">My Transaction History</strong>{" "}
-              from MeroShare as CSV, then load it here. Your file stays in the
-              browser.
+              Export <strong className="text-slate-300">My Transaction History</strong> and{" "}
+              <strong className="text-slate-300">My Purchase Source</strong> from the Python
+              scraper, then load both files together (or pick the <code className="font-mono text-slate-400">meroshare/</code> folder). Files stay in your browser.
             </p>
-            <p className="mt-3 text-xs text-slate-600">
-              {/* Optional dev: place a copy at web/public/sample.csv and fetch in useEffect */}
-              Optional: for local dev, copy a CSV to{" "}
-              <code className="rounded bg-slate-800 px-1 py-0.5 font-mono text-slate-400">
-                web/public/sample.csv
-              </code>{" "}
-              and wire a fetch if you want auto-load.
-            </p>
+          </div>
+        )}
+
+        {loadHint && (
+          <div
+            className="rounded-xl border border-amber-900/50 bg-amber-950/30 px-4 py-3 text-sm text-amber-100/90"
+            role="status"
+          >
+            {loadHint}
           </div>
         )}
 
@@ -176,6 +256,7 @@ export default function App() {
               openPositions={summary.openPositions}
               totalOpenUnits={summary.totalOpenUnits}
               portfolioSoldUnits={summary.portfolioSoldUnits}
+              totalCostBasisNPR={summary.totalCostBasisNPR}
             />
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -228,6 +309,7 @@ export default function App() {
         <StockDetail
           aggregate={selectedAggregate}
           transactions={selectedTxs}
+          purchaseLines={purchaseLines}
           onClose={() => setSelectedScrip(null)}
         />
       )}

@@ -29,6 +29,15 @@ export interface ParsedTransaction {
   category: TxCategory;
 }
 
+export interface ParsedPurchaseLine {
+  scrip: string;
+  transactionDate: string;
+  quantity: number;
+  rate: number;
+  purchaseSource: string;
+  isBonus: boolean;
+}
+
 export interface ScripAggregate {
   scrip: string;
   currentUnits: number;
@@ -38,9 +47,10 @@ export interface ScripAggregate {
   lastActivityDate: string | null;
   lastSellDate: string | null;
   creditsByCategory: Record<TxCategory, number>;
-  /** Placeholders until cost data exists */
-  waccNPR: null;
-  totalInvestedNPR: null;
+  /** FIFO weighted average cost (NPR) when purchase CSV is loaded. */
+  waccNPR: number | null;
+  /** NPR cost basis for remaining units when purchase CSV is loaded. */
+  totalInvestedNPR: number | null;
   realizedPnLNPR: null;
   unrealizedPnLNPR: null;
 }

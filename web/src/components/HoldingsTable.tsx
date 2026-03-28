@@ -16,6 +16,13 @@ interface HoldingsTableProps {
   onSelectScrip: (scrip: string) => void;
 }
 
+function formatNpr(n: number): string {
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+}
+
 export function HoldingsTable({
   rows,
   selectedScrip,
@@ -48,16 +55,38 @@ export function HoldingsTable({
       {
         id: "wacc",
         header: () => (
-          <span title="Weighted average cost — needs price data.">WACC</span>
+          <span title="Weighted average cost (NPR) — FIFO from purchase CSV.">
+            WACC
+          </span>
         ),
-        cell: () => <PlaceholderMoney />,
+        accessorFn: (row) => row.waccNPR,
+        cell: (info) => {
+          const v = info.getValue() as number | null;
+          if (v == null) return <PlaceholderMoney />;
+          return (
+            <span className="font-mono tabular-nums text-slate-200">
+              {formatNpr(v)}
+            </span>
+          );
+        },
       },
       {
         id: "invested",
         header: () => (
-          <span title="Total invested — needs price data.">Invested</span>
+          <span title="Remaining cost basis (NPR) — FIFO from purchase CSV.">
+            Invested
+          </span>
         ),
-        cell: () => <PlaceholderMoney />,
+        accessorFn: (row) => row.totalInvestedNPR,
+        cell: (info) => {
+          const v = info.getValue() as number | null;
+          if (v == null) return <PlaceholderMoney />;
+          return (
+            <span className="font-mono tabular-nums text-slate-200">
+              {formatNpr(v)}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "lastActivityDate",

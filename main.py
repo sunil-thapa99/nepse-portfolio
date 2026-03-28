@@ -7,13 +7,15 @@ import shutil
 import sys
 import tempfile
 import time
-from typing import Dict, List, Optional, Set
+from collections import defaultdict
+from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from selenium.common.exceptions import TimeoutException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from dotenv import load_dotenv
@@ -96,9 +98,20 @@ def _wait_for_new_csv(
 
 
 def login_meroshare(
-    driver: webdriver.Chrome, username: str, password: str, dp_name: str
+    driver: webdriver.Chrome,
+    username: str,
+    password: str,
+    dp_name: str,
+    *,
+    after_login: str = "transaction",
 ) -> bool:
-    """Login to MeroShare and return True if successful."""
+    """Login to MeroShare and return True if successful.
+
+    after_login:
+        "transaction" — open My Transaction History (default).
+        "purchase" — open My Purchase Source (#/purchase).
+        "dashboard" — stay on post-login home (no extra navigation).
+    """
     driver.get(MEROSHARE_URL)
 
     try:
@@ -176,28 +189,31 @@ def login_meroshare(
             print("[error] Login failed: Still on login page", file=sys.stderr)
             return False
 
-        # Navigate to My Transactions page
-        try:
-            # Wait for navigation to complete, then go to portfolio
-            time.sleep(2)
-            
-            # Try clicking the "My Portfolio" link in the sidebar
-            transactions_link = WebDriverWait(driver, 10).until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//a[contains(@href, 'transaction') or contains(., 'My Transaction History')]")
+        time.sleep(2)
+        if after_login == "transaction":
+            try:
+                transactions_link = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (
+                            By.XPATH,
+                            "//a[contains(@href, 'transaction') or contains(., 'My Transaction History')]",
+                        )
+                    )
                 )
-            )
-            transactions_link.click()
-            time.sleep(3)  # Wait for transactions page to load
-            
-            # Alternative: navigate directly via URL if clicking doesn't work
-            if "transaction" not in driver.current_url.lower():
+                transactions_link.click()
+                time.sleep(3)
+                if "transaction" not in driver.current_url.lower():
+                    driver.get(f"{MEROSHARE_URL}#/transaction")
+                    time.sleep(3)
+            except Exception as e:
+                print(
+                    f"[warn] Could not navigate to My Transactions via link, trying direct URL: {e}",
+                    file=sys.stderr,
+                )
                 driver.get(f"{MEROSHARE_URL}#/transaction")
                 time.sleep(3)
-        except Exception as e:
-            print(f"[warn] Could not navigate to My Transactions page via link, trying direct URL: {e}", file=sys.stderr)
-            # Fallback: navigate directly
-            driver.get(f"{MEROSHARE_URL}#/transaction")
+        elif after_login == "purchase":
+            driver.get(f"{MEROSHARE_URL}#/purchase")
             time.sleep(3)
         return True
 
@@ -221,7 +237,7 @@ def scrape_transactions(
 
         before = _csv_basenames_in_dir(abs_download)
 
-        wait = WebDriverWait(driver, 20)
+        wait = WebDriverWait(driver, 10)
         wait.until(
             EC.presence_of_element_located(
                 (By.CSS_SELECTOR, ".transaction-radio-btn")
@@ -295,7 +311,7 @@ def scrape_holdings(driver: webdriver.Chrome) -> List[Dict[str, str]]:
     try:
         # Wait for portfolio table to load
         # Look for table with "My Portfolio" heading or table containing "Scrip" column
-        WebDriverWait(driver, 20).until(
+        WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR, "table"))
         )
 
@@ -382,14 +398,488 @@ def save_transactions_csv(records: List[Dict[str, str]], out_path: str):
     print(f"[info] Saved {len(records)} transaction records to {out_path}")
 
 
+def _tx_csv_balance_series(df: pd.DataFrame) -> pd.Series:
+    """Current units per Scrip: last row per symbol after sorting by S.N descending (newest last)."""
+    work = df.copy()
+    work.columns = work.columns.str.strip()
+    if "Scrip" not in work.columns or "S.N" not in work.columns:
+        return pd.Series(dtype=float)
+    mask = ~work.apply(
+        lambda r: "total" in str(r.values).lower(), axis=1
+    )
+    work = work.loc[mask].copy()
+    work["_sn"] = pd.to_numeric(work["S.N"], errors="coerce")
+    work = work.dropna(subset=["_sn"])
+    work["Scrip"] = work["Scrip"].astype(str).str.strip()
+    work = work[work["Scrip"] != ""]
+    work = work.sort_values("_sn", ascending=False)
+    bal_col = "Balance After Transaction"
+    if bal_col not in work.columns:
+        return pd.Series(dtype=float)
+
+    def _bal(v: object) -> float:
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return 0.0
+        s = str(v).strip()
+        if s in ("", "-", "nan"):
+            return 0.0
+        try:
+            return float(s.replace(",", ""))
+        except ValueError:
+            return 0.0
+
+    work["_bal"] = work[bal_col].map(_bal)
+    last = work.groupby("Scrip", sort=False).last()
+    return last["_bal"]
+
+
+def open_scrips_from_transactions_csv(path: str) -> List[str]:
+    """Scrips with current balance > 0 from a MeroShare transaction export CSV."""
+    df = pd.read_csv(path)
+    bal = _tx_csv_balance_series(df)
+    open_syms = bal[bal > 0].index.tolist()
+    return sorted(open_syms, key=str.upper)
+
+
+def open_scrips_from_transaction_records(records: List[Dict[str, str]]) -> List[str]:
+    """Same as open_scrips_from_transactions_csv but from in-memory scrape rows."""
+    if not records:
+        return []
+    df = pd.DataFrame(records)
+    bal = _tx_csv_balance_series(df)
+    open_syms = bal[bal > 0].index.tolist()
+    return sorted(open_syms, key=str.upper)
+
+
+def _find_purchase_script_input(driver: webdriver.Chrome, wait: WebDriverWait):
+    """Locate the scrip field on My Purchase Source (name=script or fallbacks)."""
+    selectors = [
+        (By.CSS_SELECTOR, 'input[name="script"]'),
+        (By.NAME, "script"),
+        (By.NAME, "scrip"),
+        (By.CSS_SELECTOR, 'input[name="scrip"]'),
+    ]
+    last_err: Optional[Exception] = None
+    for by, sel in selectors:
+        try:
+            el = wait.until(EC.presence_of_element_located((by, sel)))
+            if el.is_displayed():
+                return el
+        except Exception as e:
+            last_err = e
+            continue
+    raise TimeoutException(
+        f"Could not find purchase scrip input (tried script/scrip). Last error: {last_err}"
+    )
+
+
+def _clear_purchase_input(driver: webdriver.Chrome, inp) -> None:
+    """Clear scrip field; JS + events for SPA frameworks, then Selenium clear."""
+    try:
+        driver.execute_script(
+            "var el=arguments[0]; el.value='';"
+            "el.dispatchEvent(new Event('input',{bubbles:true}));"
+            "el.dispatchEvent(new Event('change',{bubbles:true}));",
+            inp,
+        )
+    except Exception:
+        pass
+    try:
+        mod = Keys.COMMAND if sys.platform == "darwin" else Keys.CONTROL
+        inp.send_keys(mod, "a")
+        inp.send_keys(Keys.BACKSPACE)
+    except Exception:
+        pass
+    inp.clear()
+
+
+def _purchase_col_index(df: pd.DataFrame) -> Dict[str, str]:
+    """Lowercase stripped header -> original column name."""
+    return {str(c).strip().lower(): c for c in df.columns}
+
+
+def _purchase_pick_col(cmap: Dict[str, str], *candidates: str) -> Optional[str]:
+    for name in candidates:
+        key = name.strip().lower()
+        if key in cmap:
+            return cmap[key]
+    return None
+
+
+def _purchase_cell_str(row: pd.Series, col: Optional[str]) -> str:
+    if col is None or col not in row.index:
+        return ""
+    v = row[col]
+    if pd.isna(v):
+        return ""
+    s = str(v).strip()
+    if s.lower() == "nan":
+        return ""
+    return s
+
+
+def _purchase_parse_float(val: object) -> Optional[float]:
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
+    s = str(val).strip()
+    if s in ("", "-", "nan"):
+        return None
+    try:
+        return float(s.replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _purchase_format_quantity(q: float) -> str:
+    if abs(q - round(q)) < 1e-9:
+        return str(int(round(q)))
+    t = f"{q:.10f}".rstrip("0").rstrip(".")
+    return t if t else "0"
+
+
+def _purchase_format_rate(r: float) -> str:
+    return _purchase_format_quantity(r)
+
+
+def _canonical_purchase_source(raw: str) -> str:
+    t = (raw or "").strip()
+    if not t:
+        return "ON_MARKET"
+    return t.upper().replace("-", "_")
+
+
+def _normalize_purchase_table_df(
+    df: pd.DataFrame, query_scrip: str
+) -> List[Dict[str, str]]:
+    """
+    Map one parsed HTML table to canonical purchase fields (no wide concat).
+    """
+    df = df.copy()
+    df.columns = df.columns.str.strip()
+    cmap = _purchase_col_index(df)
+
+    scrip_col = _purchase_pick_col(cmap, "scrip")
+    date_col = _purchase_pick_col(cmap, "transaction date")
+    qty_tq = _purchase_pick_col(cmap, "transaction quantity")
+    qty_generic = _purchase_pick_col(cmap, "quantity")
+    qty_wacc = _purchase_pick_col(cmap, "wacc calculated quantity")
+    rate_detail = _purchase_pick_col(cmap, "rate")
+    rate_wacc = _purchase_pick_col(cmap, "wacc rate")
+    src_col = _purchase_pick_col(cmap, "purchase source")
+
+    qty_candidates = [
+        c
+        for c in (qty_tq, qty_wacc, qty_generic)
+        if c is not None
+    ]
+    seen: Set[str] = set()
+    qty_cols_ordered: List[str] = []
+    for c in qty_candidates:
+        if c not in seen:
+            seen.add(c)
+            qty_cols_ordered.append(c)
+
+    out: List[Dict[str, str]] = []
+    sym = str(query_scrip).strip()
+
+    for _, row in df.iterrows():
+        if "total" in str(row.values).lower():
+            continue
+
+        scrip = _purchase_cell_str(row, scrip_col) or sym
+        tx_date = _purchase_cell_str(row, date_col)
+
+        qty_raw: Optional[float] = None
+        for qc in qty_cols_ordered:
+            q = _purchase_parse_float(row[qc])
+            if q is not None and q > 0:
+                qty_raw = q
+                break
+        if qty_raw is None or qty_raw <= 0:
+            continue
+
+        rate_s = ""
+        r: Optional[float] = None
+        if rate_detail is not None:
+            r = _purchase_parse_float(row[rate_detail])
+        if r is None and rate_wacc is not None:
+            r = _purchase_parse_float(row[rate_wacc])
+        if r is not None:
+            rate_s = _purchase_format_rate(r)
+
+        src = _canonical_purchase_source(_purchase_cell_str(row, src_col))
+
+        out.append(
+            {
+                "Scrip": scrip,
+                "Transaction Date": tx_date,
+                "Quantity": _purchase_format_quantity(qty_raw),
+                "Rate": rate_s,
+                "Purchase Source": src,
+            }
+        )
+
+    return out
+
+
+def _transaction_records_from_csv_path(path: str) -> List[Dict[str, str]]:
+    df = pd.read_csv(path)
+    df.columns = df.columns.str.strip()
+    rows: List[Dict[str, str]] = []
+    for _, row in df.iterrows():
+        rec = {
+            k: (str(v) if pd.notna(v) else "") for k, v in row.items()
+        }
+        rows.append(rec)
+    return rows
+
+
+def _purchase_tx_date_index(
+    tx_records: List[Dict[str, str]],
+) -> Dict[Tuple[str, str], List[str]]:
+    """
+    Map (scrip_upper, quantity_str) -> transaction dates (Credit Quantity match).
+    quantity_str normalized like _purchase_format_quantity for lookup.
+    """
+    idx: Dict[Tuple[str, str], List[str]] = defaultdict(list)
+    for rec in tx_records:
+        scrip = str(rec.get("Scrip", "")).strip()
+        if not scrip:
+            continue
+        cq = _purchase_parse_float(rec.get("Credit Quantity", ""))
+        if cq is None or cq <= 0:
+            continue
+        date = str(rec.get("Transaction Date", "")).strip()
+        if not date:
+            continue
+        qkey = _purchase_format_quantity(cq)
+        idx[(scrip.upper(), qkey)].append(date)
+    return {k: sorted(set(v)) for k, v in idx.items()}
+
+
+def _purchase_fill_dates_from_transactions(
+    purchase_rows: List[Dict[str, str]],
+    tx_records: Optional[List[Dict[str, str]]],
+) -> None:
+    if not tx_records:
+        return
+    index = _purchase_tx_date_index(tx_records)
+    for rec in purchase_rows:
+        d = (rec.get("Transaction Date") or "").strip()
+        if d:
+            continue
+        scrip = (rec.get("Scrip") or "").strip()
+        qty = (rec.get("Quantity") or "").strip()
+        if not scrip or not qty:
+            continue
+        qf = _purchase_parse_float(qty)
+        if qf is None or qf <= 0:
+            continue
+        qkey = _purchase_format_quantity(qf)
+        dates = index.get((scrip.upper(), qkey))
+        if not dates:
+            continue
+        rec["Transaction Date"] = dates[0]
+
+
+def _find_purchase_result_tables(driver: webdriver.Chrome, timeout: float = 28.0):
+    """
+    Wait for result tables after Search. Results often load asynchronously; a short
+    fixed sleep misses them. Try Bootstrap table class variants, then any visible
+    <table> with rows.
+    """
+    selectors = [
+        "table.table",
+        "table.table-striped",
+        "table.table-bordered",
+        "table.table-hover",
+        "table.table-sm",
+        ".table-responsive table",
+        "div.table-responsive table",
+    ]
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for sel in selectors:
+            found = driver.find_elements(By.CSS_SELECTOR, sel)
+            visible = [t for t in found if t.is_displayed()]
+            if visible:
+                return visible
+        time.sleep(0.4)
+
+    fallback = []
+    for t in driver.find_elements(By.TAG_NAME, "table"):
+        if not t.is_displayed():
+            continue
+        rows = t.find_elements(By.CSS_SELECTOR, "tr")
+        if len(rows) >= 1:
+            fallback.append(t)
+    return fallback
+
+
+def scrape_purchase_sources(
+    driver: webdriver.Chrome,
+    scrips: List[str],
+    *,
+    pause_sec: float = 1.5,
+) -> List[Dict[str, str]]:
+    """For each scrip, search My Purchase Source; each result table maps to canonical purchase rows."""
+    all_rows: List[Dict[str, str]] = []
+    driver.get(f"{MEROSHARE_URL}#/purchase")
+    time.sleep(2.5)
+    wait = WebDriverWait(driver, 10)
+
+    try:
+        _find_purchase_script_input(driver, wait)
+    except Exception as e:
+        print(f"[error] Purchase page did not load expected input: {e}", file=sys.stderr)
+        return all_rows
+
+    for scrip in scrips:
+        sym = str(scrip).strip()
+        if not sym:
+            continue
+        try:
+            inp = _find_purchase_script_input(driver, wait)
+            _clear_purchase_input(driver, inp)
+            time.sleep(0.15)
+            inp.send_keys(sym)
+
+            try:
+                search_btn = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable(
+                        (
+                            By.XPATH,
+                            "//button[contains(., 'Search') or contains(., 'SEARCH')]",
+                        )
+                    )
+                )
+            except TimeoutException:
+                search_btn = driver.find_element(
+                    By.CSS_SELECTOR,
+                    "button.btn[type='submit'], input[type='submit']",
+                )
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});", search_btn
+            )
+            time.sleep(0.2)
+            driver.execute_script("arguments[0].click();", search_btn)
+            # Let SPA replace or inject result tables before polling (avoids stale/empty grab).
+            time.sleep(0.45)
+
+            tables = _find_purchase_result_tables(driver, timeout=28.0)
+            dfs: List[pd.DataFrame] = []
+            for table in tables:
+                html = table.get_attribute("outerHTML") or ""
+                if not html.strip():
+                    continue
+                try:
+                    parsed = pd.read_html(io.StringIO(html))
+                except (ValueError, ImportError) as parse_err:
+                    print(
+                        f"[warn] read_html failed for {sym!r}: {parse_err}",
+                        file=sys.stderr,
+                    )
+                    continue
+                if parsed:
+                    tdf = parsed[0]
+                    tdf.columns = tdf.columns.str.strip()
+                    dfs.append(tdf)
+
+            if not dfs:
+                print(
+                    f"[warn] No parseable purchase tables for scrip {sym!r} "
+                    f"(after waiting for table selectors)",
+                    file=sys.stderr,
+                )
+                time.sleep(pause_sec)
+                continue
+
+            for tdf in dfs:
+                all_rows.extend(_normalize_purchase_table_df(tdf, sym))
+
+        except Exception as e:
+            print(
+                f"[warn] Purchase source scrape failed for {sym!r}: {e}",
+                file=sys.stderr,
+            )
+        time.sleep(pause_sec)
+
+    return all_rows
+
+
+def save_purchase_sources_csv(
+    records: List[Dict[str, str]],
+    out_path: str,
+    *,
+    transaction_records: Optional[List[Dict[str, str]]] = None,
+):
+    """Save My Purchase Source rows with fixed columns; optional tx backfill for dates."""
+    if not records:
+        print("[warn] No purchase source rows to save", file=sys.stderr)
+        return
+
+    rows = [dict(r) for r in records]
+    _purchase_fill_dates_from_transactions(rows, transaction_records)
+
+    os.makedirs(os.path.dirname(out_path) if os.path.dirname(out_path) else ".", exist_ok=True)
+    ts = dt.datetime.now(dt.timezone.utc).astimezone()
+    scraped = ts.isoformat(timespec="seconds")
+
+    finalized: List[Dict[str, str]] = []
+    for r in rows:
+        src = _canonical_purchase_source(r.get("Purchase Source", ""))
+        finalized.append(
+            {
+                "scraped_at": scraped,
+                "Scrip": (r.get("Scrip") or "").strip(),
+                "Transaction Date": (r.get("Transaction Date") or "").strip(),
+                "Quantity": (r.get("Quantity") or "").strip(),
+                "Rate": (r.get("Rate") or "").strip(),
+                "Purchase Source": src,
+            }
+        )
+
+    df = pd.DataFrame(finalized)
+    df.to_csv(out_path, index=False)
+    print(f"[info] Saved {len(finalized)} purchase source rows to {out_path}")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Scrape transaction history from MeroShare"
+        description="Scrape MeroShare transaction history and/or My Purchase Source"
+    )
+    parser.add_argument(
+        "--mode",
+        choices=("transactions", "purchase", "both"),
+        default="both",
+        help=(
+            "both (default): login, export My Transaction History CSV, then scrape My Purchase Source "
+            "for open scrips; transactions: CSV only; purchase: purchase tables only "
+            "(requires --transactions-csv or --scrips)"
+        ),
     )
     parser.add_argument(
         "--out",
         default=os.getenv("MEROSHARE_OUT"),
-        help="Output CSV path (default: meroshare/<username>_transactions.csv)",
+        help="Transactions output CSV (default: meroshare/<username>_transactions.csv)",
+    )
+    parser.add_argument(
+        "--purchase-out",
+        default=os.getenv("MEROSHARE_PURCHASE_OUT"),
+        help="Purchase source output CSV (default: meroshare/<username>_purchase_sources.csv)",
+    )
+    parser.add_argument(
+        "--transactions-csv",
+        default=None,
+        help=(
+            "Existing transaction export; with --mode purchase, derives open scrips "
+            "and fills missing purchase dates (Scrip + Credit Quantity match)"
+        ),
+    )
+    parser.add_argument(
+        "--scrips",
+        default=None,
+        help="Comma-separated scrips (overrides --transactions-csv for --mode purchase)",
     )
     parser.add_argument(
         "--dp",
@@ -414,7 +904,6 @@ def main():
 
     args = parser.parse_args()
 
-    # Validate credentials
     if not args.username:
         print(
             "[error] Username required. Set MEROSHARE_USERNAME variable in script or use --username",
@@ -429,31 +918,115 @@ def main():
         )
         sys.exit(1)
 
+    safe = _safe_username_for_filename(args.username)
     if not args.out:
-        safe = _safe_username_for_filename(args.username)
         args.out = f"meroshare/{safe}_transactions.csv"
+    if not args.purchase_out:
+        args.purchase_out = f"meroshare/{safe}_purchase_sources.csv"
 
     out_path = os.path.abspath(args.out)
+    purchase_out_path = os.path.abspath(args.purchase_out)
     headless = not args.no_headless
+
+    tx_for_purchase_fill: Optional[List[Dict[str, str]]] = None
+
+    if args.mode == "purchase":
+        scrip_list: List[str] = []
+        if args.scrips:
+            scrip_list = [s.strip() for s in args.scrips.split(",") if s.strip()]
+        elif args.transactions_csv:
+            csv_path = os.path.abspath(args.transactions_csv)
+            if not os.path.isfile(csv_path):
+                print(f"[error] File not found: {csv_path}", file=sys.stderr)
+                sys.exit(1)
+            scrip_list = open_scrips_from_transactions_csv(csv_path)
+        else:
+            print(
+                "[error] --mode purchase requires --scrips or --transactions-csv",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if not scrip_list:
+            print("[error] No open scrips to query (empty list).", file=sys.stderr)
+            sys.exit(1)
+        if args.transactions_csv:
+            csv_fill = os.path.abspath(args.transactions_csv)
+            if os.path.isfile(csv_fill):
+                tx_for_purchase_fill = _transaction_records_from_csv_path(csv_fill)
 
     tmp_download = tempfile.mkdtemp(prefix="meroshare_csv_")
     driver = build_driver(headless=headless, download_dir=tmp_download)
 
     try:
-        # Login
         print(f"[info] Logging into MeroShare with DP: {args.dp}")
-        if not login_meroshare(driver, args.username, args.password, args.dp):
-            print("[error] Login failed", file=sys.stderr)
-            sys.exit(1)
 
-        print("[info] Login successful, scraping transactions...")
+        if args.mode == "transactions":
+            if not login_meroshare(
+                driver, args.username, args.password, args.dp, after_login="transaction"
+            ):
+                print("[error] Login failed", file=sys.stderr)
+                sys.exit(1)
+            print("[info] Login successful, scraping transactions...")
+            records = scrape_transactions(driver, tmp_download)
+            if not records:
+                print("[warn] No transactions data found", file=sys.stderr)
+                sys.exit(1)
+            save_transactions_csv(records, out_path)
 
-        records = scrape_transactions(driver, tmp_download)
-        if not records:
-            print("[warn] No transactions data found", file=sys.stderr)
-            sys.exit(1)
+        elif args.mode == "purchase":
+            if not login_meroshare(
+                driver, args.username, args.password, args.dp, after_login="purchase"
+            ):
+                print("[error] Login failed", file=sys.stderr)
+                sys.exit(1)
+            print(
+                f"[info] Login successful, scraping purchase source for {len(scrip_list)} scrip(s)..."
+            )
+            purchase_rows = scrape_purchase_sources(driver, scrip_list)
+            if not purchase_rows:
+                print("[warn] No purchase source rows collected", file=sys.stderr)
+                sys.exit(1)
+            save_purchase_sources_csv(
+                purchase_rows,
+                purchase_out_path,
+                transaction_records=tx_for_purchase_fill,
+            )
 
-        save_transactions_csv(records, out_path)
+        else:
+            if not login_meroshare(
+                driver, args.username, args.password, args.dp, after_login="transaction"
+            ):
+                print("[error] Login failed", file=sys.stderr)
+                sys.exit(1)
+            print("[info] Login successful, scraping transactions...")
+            records = scrape_transactions(driver, tmp_download)
+            if not records:
+                print("[warn] No transactions data found", file=sys.stderr)
+                sys.exit(1)
+            save_transactions_csv(records, out_path)
+
+            open_syms = open_scrips_from_transaction_records(records)
+            if not open_syms:
+                print(
+                    "[warn] No open positions in transaction data; skipping purchase source",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"[info] Scraping purchase source for {len(open_syms)} open scrip(s)..."
+                )
+                purchase_rows = scrape_purchase_sources(driver, open_syms)
+                if purchase_rows:
+                    save_purchase_sources_csv(
+                        purchase_rows,
+                        purchase_out_path,
+                        transaction_records=records,
+                    )
+                else:
+                    print(
+                        "[warn] No purchase source rows collected",
+                        file=sys.stderr,
+                    )
 
     finally:
         driver.quit()
