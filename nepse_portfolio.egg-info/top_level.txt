@@ -1,1 +1,5 @@
+api_app
 main
+meroshare_crypto
+scraper_db
+supabase_client

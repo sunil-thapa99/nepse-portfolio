@@ -4,3 +4,6 @@ env/
 meroshare/
 .vscode/
 __pycache__/
+*.pyc
+web/dist/
+web/node_modules/

@@ -20,15 +20,19 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from dotenv import load_dotenv
 
+from scraper_db import (
+    fetch_meroshare_credentials,
+    finalized_purchase_rows_to_payload,
+    load_transaction_rows_for_open_scrips,
+    transactions_records_to_payload,
+    upsert_purchase_sources,
+    upsert_transactions,
+)
+
 load_dotenv()
 
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
-DEFAULT_DP = os.getenv("MEROSHARE_DP")
-
-# Credentials - Update these with your MeroShare credentials
-MEROSHARE_USERNAME = os.getenv("MEROSHARE_USERNAME")
-MEROSHARE_PASSWORD = os.getenv("MEROSHARE_PASSWORD")
 
 
 def _safe_username_for_filename(username: str) -> str:
@@ -287,6 +291,10 @@ def scrape_transactions(
             return records
 
         df = pd.read_csv(downloaded)
+        try:
+            os.remove(downloaded)
+        except OSError:
+            pass
         df.columns = df.columns.str.strip()
 
         for _, row in df.iterrows():
@@ -807,6 +815,30 @@ def scrape_purchase_sources(
     return all_rows
 
 
+def finalize_purchase_sources_rows(
+    records: List[Dict[str, str]],
+    transaction_records: Optional[List[Dict[str, str]]],
+) -> Tuple[List[Dict[str, str]], str]:
+    """Canonical purchase rows (no scraped_at column) and scrape timestamp ISO string."""
+    rows = [dict(r) for r in records]
+    _purchase_fill_dates_from_transactions(rows, transaction_records)
+    ts = dt.datetime.now(dt.timezone.utc).astimezone()
+    scraped = ts.isoformat(timespec="seconds")
+    finalized: List[Dict[str, str]] = []
+    for r in rows:
+        src = _canonical_purchase_source(r.get("Purchase Source", ""))
+        finalized.append(
+            {
+                "Scrip": (r.get("Scrip") or "").strip(),
+                "Transaction Date": (r.get("Transaction Date") or "").strip(),
+                "Quantity": (r.get("Quantity") or "").strip(),
+                "Rate": (r.get("Rate") or "").strip(),
+                "Purchase Source": src,
+            }
+        )
+    return finalized, scraped
+
+
 def save_purchase_sources_csv(
     records: List[Dict[str, str]],
     out_path: str,
@@ -818,28 +850,13 @@ def save_purchase_sources_csv(
         print("[warn] No purchase source rows to save", file=sys.stderr)
         return
 
-    rows = [dict(r) for r in records]
-    _purchase_fill_dates_from_transactions(rows, transaction_records)
+    finalized, scraped = finalize_purchase_sources_rows(
+        records, transaction_records
+    )
 
     os.makedirs(os.path.dirname(out_path) if os.path.dirname(out_path) else ".", exist_ok=True)
-    ts = dt.datetime.now(dt.timezone.utc).astimezone()
-    scraped = ts.isoformat(timespec="seconds")
-
-    finalized: List[Dict[str, str]] = []
-    for r in rows:
-        src = _canonical_purchase_source(r.get("Purchase Source", ""))
-        finalized.append(
-            {
-                "scraped_at": scraped,
-                "Scrip": (r.get("Scrip") or "").strip(),
-                "Transaction Date": (r.get("Transaction Date") or "").strip(),
-                "Quantity": (r.get("Quantity") or "").strip(),
-                "Rate": (r.get("Rate") or "").strip(),
-                "Purchase Source": src,
-            }
-        )
-
-    df = pd.DataFrame(finalized)
+    out_rows = [{"scraped_at": scraped, **r} for r in finalized]
+    df = pd.DataFrame(out_rows)
     df.to_csv(out_path, index=False)
     print(f"[info] Saved {len(finalized)} purchase source rows to {out_path}")
 
@@ -855,7 +872,7 @@ def main():
         help=(
             "both (default): login, export My Transaction History CSV, then scrape My Purchase Source "
             "for open scrips; transactions: CSV only; purchase: purchase tables only "
-            "(requires --transactions-csv or --scrips)"
+            "(requires --transactions-csv, --scrips, or --user-id)"
         ),
     )
     parser.add_argument(
@@ -883,18 +900,27 @@ def main():
     )
     parser.add_argument(
         "--dp",
-        default=os.getenv("MEROSHARE_DP", DEFAULT_DP),
-        help="Depository Participant name",
+        default=None,
+        help="Depository Participant name (as shown in the DP dropdown on the login page)",
     )
     parser.add_argument(
         "--username",
-        default=MEROSHARE_USERNAME or os.getenv("MEROSHARE_USERNAME"),
-        help="MeroShare username (or set MEROSHARE_USERNAME variable in script)",
+        default=None,
+        help="MeroShare login ID",
     )
     parser.add_argument(
         "--password",
-        default=MEROSHARE_PASSWORD or os.getenv("MEROSHARE_PASSWORD"),
-        help="MeroShare password (or set MEROSHARE_PASSWORD variable in script)",
+        default=None,
+        help="MeroShare password",
+    )
+    parser.add_argument(
+        "--user-id",
+        default=None,
+        metavar="UUID",
+        help=(
+            "Supabase auth user id: load MeroShare credentials from meroshare_credentials, "
+            "decrypt password (ENCRYPTION_KEY), upsert transactions/purchase_sources (no CSV output)"
+        ),
     )
     parser.add_argument(
         "--no-headless",
@@ -904,33 +930,77 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.username:
-        print(
-            "[error] Username required. Set MEROSHARE_USERNAME variable in script or use --username",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    db_mode = bool(args.user_id)
+    if db_mode:
+        if args.username or args.password or args.dp:
+            print(
+                "[error] Do not pass --username, --password, or --dp when using --user-id.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        try:
+            username, password, dp = fetch_meroshare_credentials(args.user_id)
+        except ValueError as e:
+            print(f"[error] {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(
+                f"[error] Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): {e}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    else:
+        if not args.username:
+            print(
+                "[error] Username required. Pass --username with your MeroShare login ID, "
+                "or use --user-id for database-backed credentials.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-    if not args.password:
-        print(
-            "[error] Password required. Set MEROSHARE_PASSWORD variable in script or use --password",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        if not args.password:
+            print(
+                "[error] Password required. Pass --password with your MeroShare password.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-    safe = _safe_username_for_filename(args.username)
-    if not args.out:
-        args.out = f"meroshare/{safe}_transactions.csv"
-    if not args.purchase_out:
-        args.purchase_out = f"meroshare/{safe}_purchase_sources.csv"
+        if not args.dp:
+            print(
+                "[error] DP required. Pass --dp with your Depository Participant name "
+                "(as shown in the DP dropdown on the login page).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        username, password, dp = args.username, args.password, args.dp
 
-    out_path = os.path.abspath(args.out)
-    purchase_out_path = os.path.abspath(args.purchase_out)
+    if not db_mode:
+        safe = _safe_username_for_filename(username)
+        if not args.out:
+            args.out = f"meroshare/{safe}_transactions.csv"
+        if not args.purchase_out:
+            args.purchase_out = f"meroshare/{safe}_purchase_sources.csv"
+    else:
+        if not args.out:
+            args.out = None
+        if not args.purchase_out:
+            args.purchase_out = None
+
+    out_path = os.path.abspath(args.out) if args.out else ""
+    purchase_out_path = os.path.abspath(args.purchase_out) if args.purchase_out else ""
     headless = not args.no_headless
 
     tx_for_purchase_fill: Optional[List[Dict[str, str]]] = None
 
     if args.mode == "purchase":
+        tx_for_purchase_fill = None
+        if args.transactions_csv:
+            csv_fill = os.path.abspath(args.transactions_csv)
+            if os.path.isfile(csv_fill):
+                tx_for_purchase_fill = _transaction_records_from_csv_path(csv_fill)
+        elif args.user_id:
+            tx_for_purchase_fill = load_transaction_rows_for_open_scrips(args.user_id)
+
         scrip_list: List[str] = []
         if args.scrips:
             scrip_list = [s.strip() for s in args.scrips.split(",") if s.strip()]
@@ -940,29 +1010,35 @@ def main():
                 print(f"[error] File not found: {csv_path}", file=sys.stderr)
                 sys.exit(1)
             scrip_list = open_scrips_from_transactions_csv(csv_path)
+        elif args.user_id:
+            scrip_list = open_scrips_from_transaction_records(
+                tx_for_purchase_fill or []
+            )
         else:
             print(
-                "[error] --mode purchase requires --scrips or --transactions-csv",
+                "[error] --mode purchase requires --scrips, --transactions-csv, or --user-id",
                 file=sys.stderr,
             )
             sys.exit(1)
         if not scrip_list:
             print("[error] No open scrips to query (empty list).", file=sys.stderr)
             sys.exit(1)
-        if args.transactions_csv:
-            csv_fill = os.path.abspath(args.transactions_csv)
-            if os.path.isfile(csv_fill):
-                tx_for_purchase_fill = _transaction_records_from_csv_path(csv_fill)
 
     tmp_download = tempfile.mkdtemp(prefix="meroshare_csv_")
     driver = build_driver(headless=headless, download_dir=tmp_download)
 
     try:
-        print(f"[info] Logging into MeroShare with DP: {args.dp}")
+        print(f"[info] Logging into MeroShare with DP: {dp}")
+        scraped_at = (
+            dt.datetime.now(dt.timezone.utc)
+            .astimezone()
+            .isoformat(timespec="seconds")
+        )
+        uid = args.user_id
 
         if args.mode == "transactions":
             if not login_meroshare(
-                driver, args.username, args.password, args.dp, after_login="transaction"
+                driver, username, password, dp, after_login="transaction"
             ):
                 print("[error] Login failed", file=sys.stderr)
                 sys.exit(1)
@@ -971,11 +1047,20 @@ def main():
             if not records:
                 print("[warn] No transactions data found", file=sys.stderr)
                 sys.exit(1)
-            save_transactions_csv(records, out_path)
+            if db_mode and uid:
+                tx_payload = transactions_records_to_payload(
+                    uid, records, scraped_at
+                )
+                upsert_transactions(tx_payload)
+                print(
+                    f"[info] Upserted {len(tx_payload)} transaction row(s) to Supabase"
+                )
+            else:
+                save_transactions_csv(records, out_path)
 
         elif args.mode == "purchase":
             if not login_meroshare(
-                driver, args.username, args.password, args.dp, after_login="purchase"
+                driver, username, password, dp, after_login="purchase"
             ):
                 print("[error] Login failed", file=sys.stderr)
                 sys.exit(1)
@@ -986,15 +1071,26 @@ def main():
             if not purchase_rows:
                 print("[warn] No purchase source rows collected", file=sys.stderr)
                 sys.exit(1)
-            save_purchase_sources_csv(
-                purchase_rows,
-                purchase_out_path,
-                transaction_records=tx_for_purchase_fill,
-            )
+            if db_mode and uid:
+                fin, _ = finalize_purchase_sources_rows(
+                    purchase_rows, tx_for_purchase_fill
+                )
+                upsert_purchase_sources(
+                    finalized_purchase_rows_to_payload(uid, fin, scraped_at)
+                )
+                print(
+                    f"[info] Upserted {len(fin)} purchase source row(s) to Supabase"
+                )
+            else:
+                save_purchase_sources_csv(
+                    purchase_rows,
+                    purchase_out_path,
+                    transaction_records=tx_for_purchase_fill,
+                )
 
         else:
             if not login_meroshare(
-                driver, args.username, args.password, args.dp, after_login="transaction"
+                driver, username, password, dp, after_login="transaction"
             ):
                 print("[error] Login failed", file=sys.stderr)
                 sys.exit(1)
@@ -1003,7 +1099,16 @@ def main():
             if not records:
                 print("[warn] No transactions data found", file=sys.stderr)
                 sys.exit(1)
-            save_transactions_csv(records, out_path)
+            if db_mode and uid:
+                tx_payload = transactions_records_to_payload(
+                    uid, records, scraped_at
+                )
+                upsert_transactions(tx_payload)
+                print(
+                    f"[info] Upserted {len(tx_payload)} transaction row(s) to Supabase"
+                )
+            else:
+                save_transactions_csv(records, out_path)
 
             open_syms = open_scrips_from_transaction_records(records)
             if not open_syms:
@@ -1017,11 +1122,24 @@ def main():
                 )
                 purchase_rows = scrape_purchase_sources(driver, open_syms)
                 if purchase_rows:
-                    save_purchase_sources_csv(
-                        purchase_rows,
-                        purchase_out_path,
-                        transaction_records=records,
-                    )
+                    if db_mode and uid:
+                        fin, _ = finalize_purchase_sources_rows(
+                            purchase_rows, records
+                        )
+                        upsert_purchase_sources(
+                            finalized_purchase_rows_to_payload(
+                                uid, fin, scraped_at
+                            )
+                        )
+                        print(
+                            f"[info] Upserted {len(fin)} purchase source row(s) to Supabase"
+                        )
+                    else:
+                        save_purchase_sources_csv(
+                            purchase_rows,
+                            purchase_out_path,
+                            transaction_records=records,
+                        )
                 else:
                     print(
                         "[warn] No purchase source rows collected",

@@ -10,27 +10,39 @@ Small utility to log into [MeroShare](https://meroshare.cdsc.com.np/), export **
 
 ## Setup
 
+Use a virtual environment in the project directory named `env/` (not `.venv`). Point uv at it so it does not create a separate `.venv`:
+
 ```bash
+python -m venv env   # skip if env/ already exists
+export UV_PROJECT_ENVIRONMENT=env   # Windows (cmd): set UV_PROJECT_ENVIRONMENT=env
 uv sync
 ```
 
-This creates a virtual environment (typically `.venv/`) and installs dependencies from [`pyproject.toml`](pyproject.toml) and the lockfile [`uv.lock`](uv.lock). Commit `uv.lock` so everyone gets the same versions.
+`uv sync` installs dependencies from [`pyproject.toml`](pyproject.toml) and the lockfile [`uv.lock`](uv.lock) into `env/`. Commit `uv.lock` so everyone gets the same versions.
+
+Optional: `source env/bin/activate` when you want `python` / `pip` on your `PATH` without the `uv` prefix. To sync into an activated venv instead of using `UV_PROJECT_ENVIRONMENT`, run `uv sync --active`.
 
 ## Configuration
 
-Copy the example env file and fill in your MeroShare credentials:
+Copy the example env file and set Supabase and API values:
 
 ```bash
 cp .env.example .env
 ```
 
-Variables:
+| Variable                 | Description                                                                 |
+| ------------------------ | ----------------------------------------------------------------------------- |
+| `SUPABASE_URL`           | Project URL (Supabase **Settings → API**; Python API and scraper)           |
+| `VITE_SUPABASE_URL`      | Same URL as `SUPABASE_URL` (React app; Vite exposes only `VITE_*` to the browser) |
+| `VITE_SUPABASE_ANON_KEY` | Anon/public key (used by the React app)                                     |
+| `SUPABASE_SERVICE_KEY`   | Service role key (Python Supabase client and the credentials API; keep secret) |
+| `ENCRYPTION_KEY`         | Fernet key for encrypting MeroShare passwords stored in the database (API)   |
 
-| Variable             | Description                                                                 |
-| -------------------- | --------------------------------------------------------------------------- |
-| `MEROSHARE_USERNAME` | Your MeroShare login ID                                                     |
-| `MEROSHARE_PASSWORD` | Your MeroShare password                                                     |
-| `MEROSHARE_DP`       | Depository Participant name (as shown in the DP dropdown on the login page) |
+Generate `ENCRYPTION_KEY`:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
 
 Optional:
 
@@ -39,26 +51,54 @@ Optional:
 | `MEROSHARE_OUT`          | Default output path for `--out` (see below)                              |
 | `MEROSHARE_PURCHASE_OUT` | Default output path for `--purchase-out` (default run includes purchase) |
 
+MeroShare login for the **Selenium CLI** is not read from `.env` unless you use **`--user-id`** (see below). Otherwise pass `--username`, `--password`, and `--dp` on each run (or use shell history / a password manager). The **dashboard** can save encrypted credentials in Supabase when the API below is running.
+
+### Database mode (`--user-id`)
+
+When you pass **`--user-id <Supabase auth user UUID>`**, the scraper loads `username`, `password_encrypted`, and `dp_id` from the **`meroshare_credentials`** table using the **service role** client, decrypts the password with **`ENCRYPTION_KEY`** (same Fernet key as [`api_app.py`](api_app.py)), and **upserts** scraped rows into **`transactions`** and **`purchase_sources`** with a stable **`line_hash`** (no `meroshare/*.csv` output).
+
+**Prerequisites:**
+
+1. Apply the SQL migration [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) (adds `line_hash` and unique `(user_id, line_hash)` on both tables). Fresh installs using [`DB/main.sql`](DB/main.sql) already include these columns.
+2. The user must have saved MeroShare credentials once via the dashboard (POST `/api/meroshare/credentials` with a valid JWT) so a `meroshare_credentials` row exists.
+3. Set `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and **`ENCRYPTION_KEY`** in `.env` (same as the API).
+
+Example (transactions + purchase, open scrips from the live transaction scrape):
+
+```bash
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --mode both
+```
+
+Purchase-only using **open scrips derived from stored transactions** (no local CSV):
+
+```bash
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --mode purchase
+```
+
+Do not pass `--username`, `--password`, or `--dp` together with `--user-id`.
+
 ## Usage
+
+Keep `UV_PROJECT_ENVIRONMENT=env` set in the shell (see Setup), **or** activate `env` and use `uv run --active` instead of `uv run`—otherwise uv may create a new `.venv` and ignore `env/`.
 
 ### Default: login, transactions, then purchase
 
 By default (`--mode both`), the script logs in, downloads **My Transaction History** as CSV, derives **open scrips** (balance &gt; 0) from that scrape, then opens **My Purchase Source** and searches each scrip, merging `table.table` results into one purchase CSV.
 
 ```bash
-uv run python main.py
+uv run python main.py --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name"
 ```
 
 Run with a visible browser (useful for debugging):
 
 ```bash
-uv run python main.py --no-headless
+uv run python main.py --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name" --no-headless
 ```
 
 Override output paths:
 
 ```bash
-uv run python main.py --out meroshare/custom_name.csv --purchase-out meroshare/custom_purchase.csv
+uv run python main.py --out meroshare/custom_name.csv --purchase-out meroshare/custom_purchase.csv --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name"
 ```
 
 If `--out` is omitted and `MEROSHARE_OUT` is not set, transactions are written to:
@@ -72,7 +112,7 @@ Purchase rows go to `meroshare/<username>_purchase_sources.csv` unless you set `
 To skip purchase scraping and only export the transaction CSV:
 
 ```bash
-uv run python main.py --mode transactions
+uv run python main.py --mode transactions --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name"
 ```
 
 ### My Purchase Source only
@@ -83,16 +123,16 @@ uv run python main.py --mode transactions
 | -------------- | -------------------------------------------------------------------------------- |
 | `both`         | Default: transaction CSV, then purchase tables for open scrips from that scrape. |
 | `transactions` | Only My Transaction History CSV.                                                 |
-| `purchase`     | Only purchase tables; requires `--transactions-csv` and/or `--scrips`.           |
+| `purchase`     | Only purchase tables; requires `--transactions-csv`, `--scrips`, or `--user-id`. |
 
 Examples:
 
 ```bash
 # Open scrips inferred from an existing transaction export (no live transaction scrape)
-uv run python main.py --mode purchase --transactions-csv meroshare/yourname_transactions.csv --no-headless
+uv run python main.py --mode purchase --transactions-csv meroshare/yourname_transactions.csv --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name" --no-headless
 
 # Fixed list (debug / partial run)
-uv run python main.py --mode purchase --scrips SHEL,ADBL --no-headless
+uv run python main.py --mode purchase --scrips SHEL,ADBL --username YOUR_ID --password YOUR_PASSWORD --dp "Your DP name" --no-headless
 ```
 
 If MeroShare changes the purchase page, you may need to adjust selectors in `main.py` (`input[name="script"]`, Search button, `table.table`).
@@ -103,7 +143,15 @@ Exports land under `meroshare/` by default (that directory is gitignored). Each 
 
 ## Transaction dashboard (React)
 
-A local-only viewer lives in [`web/`](web/). It parses the same MeroShare CSV in the browser (no upload to a server).
+The app in [`web/`](web/) loads **`transactions`** and **`purchase_sources`** from Supabase for the signed-in user (RLS limits rows to `auth.uid()`). Sign in with Supabase Auth, save MeroShare credentials via **POST `/api/meroshare/credentials`**, then use **Refresh data** to run the scraper.
+
+**Refresh data** calls **POST `/api/scrape`** with the user’s JWT. The API verifies the token, checks that `meroshare_credentials` exists, then runs `uv run python main.py --user-id <uuid> --mode both` in a subprocess (same machine must have **Chrome**, **`uv`**, and repo **`.env`** with `SUPABASE_*`, `ENCRYPTION_KEY`, etc.). After a successful scrape, the dashboard refetches from Supabase.
+
+**Development:** run the API and the Vite dev server in two terminals (from the repo root, with `.env` loaded and `ENCRYPTION_KEY` set):
+
+```bash
+uv run uvicorn api_app:app --reload --port 8000
+```
 
 ```bash
 cd web
@@ -111,9 +159,9 @@ npm install
 npm run dev
 ```
 
-Then open the URL Vite prints (usually `http://localhost:5173`), load **Transactions** (My Transaction History CSV), then optionally **Purchase source** — the merged `*_purchase_sources.csv` from the Python scraper. **WACC** and **Invested** use a **weighted average** from purchase **detail** rows when present (BONUS lots count as zero NPR cost in the numerator); otherwise the MeroShare **summary** row is used. The stock detail table adds a **Rate (NPR)** column by matching purchase lines to buy rows on date and quantity. Symbols without usable purchase data still show em dashes for those fields.
+Vite proxies `/api` to `http://127.0.0.1:8000`. Open the URL Vite prints (usually `http://localhost:5173`). **WACC** and **Invested** use a **weighted average** from purchase **detail** rows when present (BONUS lots count as zero NPR cost in the numerator); otherwise the MeroShare **summary** row is used. The stock detail table adds a **Rate (NPR)** column by matching purchase lines to buy rows on date and quantity. Symbols without usable purchase data still show em dashes for those fields.
 
-Optional: copy CSVs to `web/public/` for experiments; you can add a `fetch("/sample.csv")` in dev if you want auto-load.
+Parser unit tests still use CSV **strings** in [`web/src/lib/`](web/src/lib/); the dashboard no longer uploads CSV files. For production, set `VITE_API_BASE_URL` to your API origin if it is not same-origin as the static site.
 
 ```bash
 cd web

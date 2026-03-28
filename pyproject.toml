@@ -5,9 +5,14 @@ description = "Download MeroShare transaction history to CSV via Selenium"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "cryptography>=42",
+    "fastapi>=0.115",
+    "httpx>=0.27",
     "pandas>=2.0,<3",
     "python-dotenv>=1.0",
     "selenium>=4.15",
+    "supabase>=2.0",
+    "uvicorn[standard]>=0.32",
 ]
 
 [build-system]
@@ -15,5 +20,5 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["main"]
+py-modules = ["main", "supabase_client", "api_app", "meroshare_crypto", "scraper_db"]
 
