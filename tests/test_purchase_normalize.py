@@ -1,8 +1,6 @@
 """Tests for purchase source normalization and transaction date backfill."""
 
-import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -165,35 +163,6 @@ class TestPurchaseFillDates(unittest.TestCase):
         ]
         m._purchase_fill_dates_from_transactions(purchase, txs)
         self.assertEqual(purchase[0]["Transaction Date"], "2020-01-01")
-
-
-class TestSavePurchaseSourcesCsv(unittest.TestCase):
-    def test_fixed_columns(self) -> None:
-        rows = [
-            {
-                "Scrip": "A",
-                "Transaction Date": "2024-06-01",
-                "Quantity": "1",
-                "Rate": "100",
-                "Purchase Source": "",
-            }
-        ]
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "p.csv")
-            m.save_purchase_sources_csv(rows, path)
-            df = pd.read_csv(path)
-        self.assertEqual(
-            list(df.columns),
-            [
-                "scraped_at",
-                "Scrip",
-                "Transaction Date",
-                "Quantity",
-                "Rate",
-                "Purchase Source",
-            ],
-        )
-        self.assertEqual(df.iloc[0]["Purchase Source"], "ON_MARKET")
 
 
 if __name__ == "__main__":

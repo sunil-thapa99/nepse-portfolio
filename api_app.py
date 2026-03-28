@@ -152,7 +152,7 @@ def _bearer_token(request: Request) -> str:
 def post_scrape(request: Request) -> dict:
     """
     Verify JWT, ensure MeroShare credentials exist, run Selenium scraper subprocess
-    (main.py --user-id ... --mode both) to refresh transactions / purchase_sources.
+    (main.py --user-id ...) to refresh transactions / purchase_sources.
     """
     token = _bearer_token(request)
     user_id = verify_jwt_user_id(token)
@@ -172,15 +172,13 @@ def post_scrape(request: Request) -> dict:
 
     uv = shutil.which("uv")
     if uv:
-        cmd = [uv, "run", "python", "main.py", "--user-id", user_id, "--mode", "both"]
+        cmd = [uv, "run", "python", "main.py", "--user-id", user_id]
     else:
         cmd = [
             os.environ.get("PYTHON", "python3"),
             str(_REPO_ROOT / "main.py"),
             "--user-id",
             user_id,
-            "--mode",
-            "both",
         ]
 
     proc = subprocess.run(

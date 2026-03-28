@@ -128,12 +128,15 @@ def transactions_records_to_payload(
 
 
 def upsert_transactions(rows: List[Dict[str, Any]]) -> None:
+    n = len(rows)
+    print(f"[info] Transactions upsert: starting ({n} row(s))...")
     for i in range(0, len(rows), _UPSERT_CHUNK):
         chunk = rows[i : i + _UPSERT_CHUNK]
         supabase.table("transactions").upsert(
             chunk,
             on_conflict="user_id,line_hash",
         ).execute()
+    print(f"[info] Transactions upsert: finished ({n} row(s)).")
 
 
 def _norm_purchase_field(v: Any) -> str:
@@ -174,7 +177,7 @@ def finalized_purchase_rows_to_payload(
     finalized: List[Dict[str, str]],
     scraped_at_iso: str,
 ) -> List[Dict[str, Any]]:
-    """Rows like save_purchase_sources_csv `finalized` (canonical Purchase Source)."""
+    """Build Supabase rows from finalized purchase dicts (canonical Purchase Source)."""
     out: List[Dict[str, Any]] = []
     for r in finalized:
         scrip = (r.get("Scrip") or "").strip()
@@ -182,6 +185,8 @@ def finalized_purchase_rows_to_payload(
         qty_s = (r.get("Quantity") or "").strip()
         rate_s = (r.get("Rate") or "").strip()
         src = (r.get("Purchase Source") or "").strip()
+        if not src:
+            src = "ON_MARKET"
         if not scrip or not td_raw:
             continue
         d_iso = _parse_purchase_date_raw(td_raw)
@@ -190,10 +195,15 @@ def finalized_purchase_rows_to_payload(
         td = date.fromisoformat(d_iso)
         qty = _parse_num_for_db(qty_s)
         rate = _parse_num_for_db(rate_s)
-        if qty is None or rate is None:
+        if qty is None:
             continue
+        # HTML tables sometimes omit rate; DB requires numeric rate — default to 0.0.
+        rate_for_hash_s = rate_s
+        if rate is None:
+            rate = 0.0
+            rate_for_hash_s = "0" if not (rate_s or "").strip() else rate_s
         lh = purchase_line_hash(
-            user_id, scrip, td.isoformat(), qty_s, rate_s, src
+            user_id, scrip, td.isoformat(), qty_s, rate_for_hash_s, src
         )
         out.append(
             {
@@ -211,12 +221,15 @@ def finalized_purchase_rows_to_payload(
 
 
 def upsert_purchase_sources(rows: List[Dict[str, Any]]) -> None:
+    n = len(rows)
+    print(f"[info] Purchase sources upsert: starting ({n} row(s))...")
     for i in range(0, len(rows), _UPSERT_CHUNK):
         chunk = rows[i : i + _UPSERT_CHUNK]
         supabase.table("purchase_sources").upsert(
             chunk,
             on_conflict="user_id,line_hash",
         ).execute()
+    print(f"[info] Purchase sources upsert: finished ({n} row(s)).")
 
 
 def _sort_key_transaction_date(v: Any) -> Tuple[int, int, int]:

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { portfolioTotalSoldUnits } from "../lib/aggregatePortfolio";
 import { apiUrl } from "../lib/apiUrl";
 import {
   buildPortfolioFromDb,
@@ -19,6 +18,14 @@ import { useAuth } from "../auth/AuthContext";
 function matchesFilter(scrip: string, q: string): boolean {
   if (!q.trim()) return true;
   return scrip.toLowerCase().includes(q.trim().toLowerCase());
+}
+
+function matchesTxRowFilter(r: DbTransactionRow, q: string): boolean {
+  if (!q.trim()) return true;
+  const needle = q.trim().toLowerCase();
+  if (r.scrip.toLowerCase().includes(needle)) return true;
+  const desc = r.history_description ?? "";
+  return desc.toLowerCase().includes(needle);
 }
 
 function errMsg(e: unknown): string {
@@ -55,6 +62,10 @@ export default function DashboardPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
+  const [rawDataView, setRawDataView] = useState<"positions" | "transactions">(
+    "positions"
+  );
+  const [rawDataFilter, setRawDataFilter] = useState("");
   const [openOnly, setOpenOnly] = useState(false);
   const [selectedScrip, setSelectedScrip] = useState<string | null>(null);
 
@@ -149,7 +160,6 @@ export default function DashboardPage() {
       return {
         openPositions: 0,
         totalOpenUnits: 0,
-        portfolioSoldUnits: 0,
         totalCostBasisNPR: null as number | null,
       };
     }
@@ -166,7 +176,6 @@ export default function DashboardPage() {
     return {
       openPositions: open.length,
       totalOpenUnits: open.reduce((s, a) => s + a.currentUnits, 0),
-      portfolioSoldUnits: portfolioTotalSoldUnits(portfolio.transactions),
       totalCostBasisNPR: anyCost ? costSum : null,
     };
   }, [portfolio]);
@@ -184,6 +193,11 @@ export default function DashboardPage() {
   const purchaseLines = useMemo(
     () => dbPurchaseSourcesToParsed(purchaseRows),
     [purchaseRows]
+  );
+
+  const filteredTxRows = useMemo(
+    () => txRows.filter((r) => matchesTxRowFilter(r, rawDataFilter)),
+    [txRows, rawDataFilter]
   );
 
   const handleRefreshScrape = useCallback(async () => {
@@ -297,159 +311,201 @@ export default function DashboardPage() {
         )}
 
         {!loading && txRows.length > 0 && (
-          <>
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-slate-100">
-                Transactions
-              </h2>
-              <div className="overflow-x-auto rounded-xl border border-slate-700/80">
-                <table className="min-w-full text-left text-sm text-slate-200">
-                  <thead className="border-b border-slate-700 bg-slate-900/50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2">Scrip</th>
-                      <th className="px-3 py-2">Transaction Date</th>
-                      <th className="px-3 py-2">Credit Quantity</th>
-                      <th className="px-3 py-2">Debit Quantity</th>
-                      <th className="px-3 py-2">Balance After Transaction</th>
-                      <th className="px-3 py-2">Description</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {txRows.map((r) => (
-                      <tr
-                        key={r.id}
-                        className="border-b border-slate-800/80 odd:bg-slate-900/20"
-                      >
-                        <td className="px-3 py-2 font-mono">{r.scrip}</td>
-                        <td className="px-3 py-2 font-mono">
-                          {formatTxDate(r.transaction_date)}
-                        </td>
-                        <td className="px-3 py-2 font-mono">
-                          {formatNum(r.credit_quantity)}
-                        </td>
-                        <td className="px-3 py-2 font-mono">
-                          {formatNum(r.debit_quantity)}
-                        </td>
-                        <td className="px-3 py-2 font-mono">
-                          {formatNum(r.balance_after_transaction)}
-                        </td>
-                        <td className="max-w-md px-3 py-2 text-slate-400">
-                          {r.history_description ?? "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+          <div className="space-y-10">
+            {portfolio && (
+              <>
+                <SummaryCards
+                  openPositions={summary.openPositions}
+                  totalOpenUnits={summary.totalOpenUnits}
+                  totalCostBasisNPR={summary.totalCostBasisNPR}
+                />
 
-            <section className="space-y-3">
-              <h2 className="text-lg font-semibold text-slate-100">
-                Purchase sources
-              </h2>
-              <div className="overflow-x-auto rounded-xl border border-slate-700/80">
-                <table className="min-w-full text-left text-sm text-slate-200">
-                  <thead className="border-b border-slate-700 bg-slate-900/50 text-xs uppercase text-slate-500">
-                    <tr>
-                      <th className="px-3 py-2">Scrip</th>
-                      <th className="px-3 py-2">Transaction Date</th>
-                      <th className="px-3 py-2">Quantity</th>
-                      <th className="px-3 py-2">Rate</th>
-                      <th className="px-3 py-2">Purchase Source</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {purchaseRows.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-3 py-6 text-center text-slate-500"
-                        >
-                          No purchase source rows yet — run Refresh data after
-                          transactions exist.
-                        </td>
-                      </tr>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex-1">
+                    <label htmlFor="scrip-filter" className="sr-only">
+                      Filter by scrip
+                    </label>
+                    <input
+                      id="scrip-filter"
+                      type="search"
+                      placeholder="Filter by scrip name…"
+                      value={filter}
+                      onChange={(e) => setFilter(e.target.value)}
+                      className="w-full max-w-md rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+                  {rawDataView === "positions" ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={openOnly}
+                        onChange={(e) => setOpenOnly(e.target.checked)}
+                        className="rounded border-slate-600 bg-surface-raised text-accent focus:ring-accent"
+                      />
+                      Hide fully sold scrips
+                    </label>
+                  ) : null}
+                </div>
+              </>
+            )}
+
+            <section
+              className="space-y-4"
+              aria-label="Open positions and transactions"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div
+                  className="inline-flex rounded-xl border border-slate-700 bg-slate-900/40 p-1"
+                  role="tablist"
+                  aria-label="Data view"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rawDataView === "positions"}
+                    id="tab-open-positions"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      rawDataView === "positions"
+                        ? "border border-accent/50 bg-accent/15 text-accent shadow-sm"
+                        : "border border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                    onClick={() => setRawDataView("positions")}
+                  >
+                    Open positions
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rawDataView === "transactions"}
+                    id="tab-transactions"
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                      rawDataView === "transactions"
+                        ? "border border-accent/50 bg-accent/15 text-accent shadow-sm"
+                        : "border border-transparent text-slate-400 hover:text-slate-200"
+                    }`}
+                    onClick={() => setRawDataView("transactions")}
+                  >
+                    Transactions
+                  </button>
+                </div>
+                {rawDataView === "transactions" ? (
+                  <div className="min-w-0 flex-1 sm:max-w-md">
+                    <label htmlFor="raw-data-filter" className="sr-only">
+                      Filter transaction rows
+                    </label>
+                    <input
+                      id="raw-data-filter"
+                      type="search"
+                      placeholder="Filter by scrip or description…"
+                      value={rawDataFilter}
+                      onChange={(e) => setRawDataFilter(e.target.value)}
+                      className="w-full rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+                ) : null}
+              </div>
+
+              {rawDataView === "positions" ? (
+                <div className="space-y-10">
+                  <div className="space-y-3">
+                    <h2
+                      className="text-lg font-semibold text-slate-100"
+                      id="heading-open-positions"
+                    >
+                      Open positions
+                    </h2>
+                    {portfolio ? (
+                      <div aria-labelledby="tab-open-positions heading-open-positions">
+                        <HoldingsTable
+                          rows={holdings}
+                          selectedScrip={selectedScrip}
+                          onSelectScrip={setSelectedScrip}
+                        />
+                      </div>
                     ) : (
-                      purchaseRows.map((r) => (
-                        <tr
-                          key={r.id}
-                          className="border-b border-slate-800/80 odd:bg-slate-900/20"
-                        >
-                          <td className="px-3 py-2 font-mono">{r.scrip}</td>
-                          <td className="px-3 py-2 font-mono">
-                            {formatTxDate(r.transaction_date)}
-                          </td>
-                          <td className="px-3 py-2 font-mono">
-                            {formatNum(r.quantity)}
-                          </td>
-                          <td className="px-3 py-2 font-mono">
-                            {formatNum(r.rate)}
-                          </td>
-                          <td className="px-3 py-2 font-mono text-slate-400">
-                            {r.purchase_source}
-                          </td>
-                        </tr>
-                      ))
+                      <p className="rounded-xl border border-slate-700/80 bg-slate-900/30 px-4 py-6 text-center text-sm text-slate-500">
+                        {portfolioError
+                          ? `Portfolio could not be built: ${portfolioError}`
+                          : "No portfolio data."}
+                      </p>
                     )}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                  {portfolio ? (
+                    <SoldSections
+                      partialSold={partialSold}
+                      fullyExited={fullyExited}
+                      selectedScrip={selectedScrip}
+                      onSelectScrip={setSelectedScrip}
+                    />
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <h2 className="text-lg font-semibold text-slate-100">
+                    Transactions
+                  </h2>
+                  <div className="overflow-x-auto rounded-xl border border-slate-700/80">
+                    <table
+                      className="min-w-full text-left text-sm text-slate-200"
+                      aria-labelledby="tab-transactions"
+                    >
+                      <thead className="border-b border-slate-700 bg-slate-900/50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-3 py-2">Scrip</th>
+                          <th className="px-3 py-2">Transaction Date</th>
+                          <th className="px-3 py-2">Credit Quantity</th>
+                          <th className="px-3 py-2">Debit Quantity</th>
+                          <th className="px-3 py-2">
+                            Balance After Transaction
+                          </th>
+                          <th className="px-3 py-2">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTxRows.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={6}
+                              className="px-3 py-6 text-center text-slate-500"
+                            >
+                              {txRows.length === 0
+                                ? "No transactions."
+                                : "No rows match this filter."}
+                            </td>
+                          </tr>
+                        ) : (
+                          filteredTxRows.map((r) => (
+                            <tr
+                              key={r.id}
+                              className="border-b border-slate-800/80 odd:bg-slate-900/20"
+                            >
+                              <td className="px-3 py-2 font-mono">{r.scrip}</td>
+                              <td className="px-3 py-2 font-mono">
+                                {formatTxDate(r.transaction_date)}
+                              </td>
+                              <td className="px-3 py-2 font-mono">
+                                {formatNum(r.credit_quantity)}
+                              </td>
+                              <td className="px-3 py-2 font-mono">
+                                {formatNum(r.debit_quantity)}
+                              </td>
+                              <td className="px-3 py-2 font-mono">
+                                {formatNum(r.balance_after_transaction)}
+                              </td>
+                              <td className="max-w-md px-3 py-2 text-slate-400">
+                                {r.history_description ?? "—"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </section>
-          </>
-        )}
 
-        {portfolio && (
-          <>
-            <SummaryCards
-              openPositions={summary.openPositions}
-              totalOpenUnits={summary.totalOpenUnits}
-              portfolioSoldUnits={summary.portfolioSoldUnits}
-              totalCostBasisNPR={summary.totalCostBasisNPR}
-            />
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex-1">
-                <label htmlFor="scrip-filter" className="sr-only">
-                  Filter by scrip
-                </label>
-                <input
-                  id="scrip-filter"
-                  type="search"
-                  placeholder="Filter by scrip name…"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="w-full max-w-md rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
-                <input
-                  type="checkbox"
-                  checked={openOnly}
-                  onChange={(e) => setOpenOnly(e.target.checked)}
-                  className="rounded border-slate-600 bg-surface-raised text-accent focus:ring-accent"
-                />
-                Hide fully sold scrips
-              </label>
-            </div>
-
-            <section>
-              <h2 className="mb-3 text-lg font-semibold text-slate-100">
-                Open positions
-              </h2>
-              <HoldingsTable
-                rows={holdings}
-                selectedScrip={selectedScrip}
-                onSelectScrip={setSelectedScrip}
-              />
-            </section>
-
-            <SoldSections
-              partialSold={partialSold}
-              fullyExited={fullyExited}
-              selectedScrip={selectedScrip}
-              onSelectScrip={setSelectedScrip}
-            />
-          </>
+          </div>
         )}
       </main>
 
