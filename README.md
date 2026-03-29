@@ -37,6 +37,7 @@ cp .env.example .env
 | `SUPABASE_URL`           | Project URL (Supabase **Settings → API**; Python API and scraper)           |
 | `VITE_SUPABASE_URL`      | Same URL as `SUPABASE_URL` (React app; Vite exposes only `VITE_*` to the browser) |
 | `VITE_SUPABASE_ANON_KEY` | Anon/public key (used by the React app)                                     |
+| `VITE_API_BASE_URL`      | Optional. Set in production when the API is not same-origin (see [Transaction dashboard](#transaction-dashboard-react)); omit locally so Vite proxies `/api` |
 | `SUPABASE_SERVICE_KEY`   | Service role key (Python Supabase client and the credentials API; keep secret) |
 | `ENCRYPTION_KEY`         | Fernet key for encrypting MeroShare passwords stored in the database (API)   |
 
@@ -66,7 +67,7 @@ uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
 uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless
 ```
 
-Each run: transaction export in browser → upsert **`transactions`** → derive open scrips (balance &gt; 0 from the scrape) → scrape **My Purchase Source** HTML → upsert **`purchase_sources`**. If there are no open positions, purchase scraping is skipped.
+Each run: transaction export in browser → upsert **`transactions`** → derive open scrips (`balance > 0` from the scrape) → scrape **My Purchase Source** HTML → upsert **`purchase_sources`**. If there are no open positions, purchase scraping is skipped.
 
 If MeroShare changes the purchase page, you may need to adjust selectors in `main.py` (`input[name="script"]`, Search button, result tables).
 
@@ -95,5 +96,11 @@ For production, set `VITE_API_BASE_URL` to your API origin if it is not same-ori
 ```bash
 cd web
 npm run build   # production build to web/dist
-npm test        # unit tests
+npm test        # Vitest (frontend lib + components)
+```
+
+**Python tests** (from repo root, uses the same `uv` environment as the scraper):
+
+```bash
+uv run python -m unittest discover -s tests -v
 ```
