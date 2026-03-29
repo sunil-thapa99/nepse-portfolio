@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -10,6 +11,8 @@ import pandas as pd
 
 from meroshare_crypto import decrypt_password
 from supabase_client import supabase
+
+logger = logging.getLogger(__name__)
 
 _UPSERT_CHUNK = 500
 
@@ -129,14 +132,14 @@ def transactions_records_to_payload(
 
 def upsert_transactions(rows: List[Dict[str, Any]]) -> None:
     n = len(rows)
-    print(f"[info] Transactions upsert: starting ({n} row(s))...")
+    logger.info("[info] Transactions upsert: starting (%s row(s))...", n)
     for i in range(0, len(rows), _UPSERT_CHUNK):
         chunk = rows[i : i + _UPSERT_CHUNK]
         supabase.table("transactions").upsert(
             chunk,
             on_conflict="user_id,line_hash",
         ).execute()
-    print(f"[info] Transactions upsert: finished ({n} row(s)).")
+    logger.info("[info] Transactions upsert: finished (%s row(s)).", n)
 
 
 def _norm_purchase_field(v: Any) -> str:
@@ -222,14 +225,14 @@ def finalized_purchase_rows_to_payload(
 
 def upsert_purchase_sources(rows: List[Dict[str, Any]]) -> None:
     n = len(rows)
-    print(f"[info] Purchase sources upsert: starting ({n} row(s))...")
+    logger.info("[info] Purchase sources upsert: starting (%s row(s))...", n)
     for i in range(0, len(rows), _UPSERT_CHUNK):
         chunk = rows[i : i + _UPSERT_CHUNK]
         supabase.table("purchase_sources").upsert(
             chunk,
             on_conflict="user_id,line_hash",
         ).execute()
-    print(f"[info] Purchase sources upsert: finished ({n} row(s)).")
+    logger.info("[info] Purchase sources upsert: finished (%s row(s)).", n)
 
 
 def _sort_key_transaction_date(v: Any) -> Tuple[int, int, int]:

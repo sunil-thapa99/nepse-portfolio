@@ -181,20 +181,23 @@ def post_scrape(request: Request) -> dict:
             user_id,
         ]
 
+    # Inherit stdout/stderr so main.py logging appears in the uvicorn terminal.
+    # (capture_output=True would hide scraper logs entirely.)
+    logger.info("Starting scraper subprocess: %s", " ".join(cmd))
     proc = subprocess.run(
         cmd,
         cwd=str(_REPO_ROOT),
-        capture_output=True,
-        text=True,
         timeout=_SCRAPE_TIMEOUT_SEC,
         env=os.environ.copy(),
     )
     if proc.returncode != 0:
-        err = (proc.stderr or proc.stdout or "").strip()
-        tail = err[-4000:] if len(err) > 4000 else err
+        logger.error("Scraper subprocess exited with code %s", proc.returncode)
         raise HTTPException(
             status_code=500,
-            detail=f"Scraper failed (exit {proc.returncode}): {tail or 'no output'}",
+            detail=(
+                f"Scraper failed (exit {proc.returncode}). "
+                "See the API server terminal for full log output."
+            ),
         )
 
     return {"ok": True}

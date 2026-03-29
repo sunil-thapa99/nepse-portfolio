@@ -1,6 +1,7 @@
 import argparse
 import datetime as dt
 import io
+import logging
 import os
 import shutil
 import sys
@@ -28,6 +29,8 @@ from scraper_db import (
 )
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
@@ -177,11 +180,11 @@ def login_meroshare(
                 )
                 if error_elements:
                     error_text = error_elements[0].text
-                    print(f"[error] Login failed: {error_text}", file=sys.stderr)
+                    logger.error("[error] Login failed: %s", error_text)
                     return False
             except Exception:
                 pass
-            print("[error] Login failed: Still on login page", file=sys.stderr)
+            logger.error("[error] Login failed: Still on login page")
             return False
 
         time.sleep(2)
@@ -201,9 +204,9 @@ def login_meroshare(
                     driver.get(f"{MEROSHARE_URL}#/transaction")
                     time.sleep(3)
             except Exception as e:
-                print(
-                    f"[warn] Could not navigate to My Transactions via link, trying direct URL: {e}",
-                    file=sys.stderr,
+                logger.warning(
+                    "[warn] Could not navigate to My Transactions via link, trying direct URL: %s",
+                    e,
                 )
                 driver.get(f"{MEROSHARE_URL}#/transaction")
                 time.sleep(3)
@@ -213,7 +216,7 @@ def login_meroshare(
         return True
 
     except Exception as e:
-        print(f"[error] Login error: {e}", file=sys.stderr)
+        logger.error("[error] Login error: %s", e)
         return False
 
 
@@ -278,7 +281,7 @@ def scrape_transactions(
 
         downloaded = _wait_for_new_csv(abs_download, before, timeout=90)
         if not downloaded:
-            print("[error] Timed out waiting for CSV download", file=sys.stderr)
+            logger.error("[error] Timed out waiting for CSV download")
             return records
 
         df = pd.read_csv(downloaded)
@@ -296,10 +299,7 @@ def scrape_transactions(
             records.append(record)
 
     except Exception as e:
-        print(f"[error] Scraping error: {e}", file=sys.stderr)
-        import traceback
-
-        traceback.print_exc()
+        logger.exception("[error] Scraping error: %s", e)
 
     return records
 
@@ -620,13 +620,17 @@ def scrape_purchase_sources(
     try:
         _find_purchase_script_input(driver, wait)
     except Exception as e:
-        print(f"[error] Purchase page did not load expected input: {e}", file=sys.stderr)
+        logger.error("[error] Purchase page did not load expected input: %s", e)
         return all_rows
 
-    for scrip in scrips:
-        sym = str(scrip).strip()
-        if not sym:
-            continue
+    to_scrape = [str(s).strip() for s in scrips if str(s).strip()]
+    for i, sym in enumerate(to_scrape, start=1):
+        logger.info(
+            "[info] Scraping purchase source for scrip %s/%s: %s",
+            i,
+            len(to_scrape),
+            sym,
+        )
         try:
             inp = _find_purchase_script_input(driver, wait)
             _clear_purchase_input(driver, inp)
@@ -664,9 +668,8 @@ def scrape_purchase_sources(
                 try:
                     parsed = pd.read_html(io.StringIO(html))
                 except (ValueError, ImportError) as parse_err:
-                    print(
-                        f"[warn] read_html failed for {sym!r}: {parse_err}",
-                        file=sys.stderr,
+                    logger.warning(
+                        "[warn] read_html failed for %r: %s", sym, parse_err
                     )
                     continue
                 if parsed:
@@ -675,24 +678,21 @@ def scrape_purchase_sources(
                     dfs.append(tdf)
 
             if not dfs:
-                print(
-                    f"[warn] No parseable purchase tables for scrip {sym!r} "
-                    f"(after waiting for table selectors)",
-                    file=sys.stderr,
+                logger.warning(
+                    "[warn] No parseable purchase tables for scrip %r "
+                    "(after waiting for table selectors)",
+                    sym,
                 )
                 time.sleep(pause_sec)
                 continue
-
             for tdf in dfs:
                 all_rows.extend(_normalize_purchase_table_df(tdf, sym))
 
         except Exception as e:
-            print(
-                f"[warn] Purchase source scrape failed for {sym!r}: {e}",
-                file=sys.stderr,
+            logger.warning(
+                "[warn] Purchase source scrape failed for %r: %s", sym, e
             )
         time.sleep(pause_sec)
-
     return all_rows
 
 
@@ -711,7 +711,7 @@ def finalize_purchase_sources_rows(
         finalized.append(
             {
                 "Scrip": (r.get("Scrip") or "").strip(),
-                "Transaction Date": (r.get("Transaction Date") or "").strip(),
+                "Transaction Date": (r.get("Transaction Date") or dt.date.today().isoformat()).strip(),
                 "Quantity": (r.get("Quantity") or "").strip(),
                 "Rate": (r.get("Rate") or "").strip(),
                 "Purchase Source": src,
@@ -745,15 +745,22 @@ def main():
 
     args = parser.parse_args()
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        stream=sys.stderr,
+        force=True,
+    )
+
     try:
         username, password, dp = fetch_meroshare_credentials(args.user_id)
     except ValueError as e:
-        print(f"[error] {e}", file=sys.stderr)
+        logger.error("[error] %s", e)
         sys.exit(1)
     except Exception as e:
-        print(
-            f"[error] Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): {e}",
-            file=sys.stderr,
+        logger.error(
+            "[error] Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): %s",
+            e,
         )
         sys.exit(1)
 
@@ -763,7 +770,7 @@ def main():
     driver = build_driver(headless=headless, download_dir=tmp_download)
 
     try:
-        print(f"[info] Logging into MeroShare with DP: {dp}")
+        logger.info("[info] Logging into MeroShare with DP: %s", dp)
         scraped_at = (
             dt.datetime.now(dt.timezone.utc)
             .astimezone()
@@ -774,18 +781,21 @@ def main():
         if not login_meroshare(
             driver, username, password, dp, after_login="transaction"
         ):
-            print("[error] Login failed", file=sys.stderr)
+            logger.error("[error] Login failed")
             sys.exit(1)
-        print("[info] Login successful, scraping transactions...")
+        logger.info("[info] Login successful, scraping transactions...")
         records = scrape_transactions(driver, tmp_download)
         if not records:
-            print("[warn] No transactions data found", file=sys.stderr)
+            logger.warning("[warn] No transactions data found")
             sys.exit(1)
-        print(f"[info] Transactions: scraped {len(records)} row(s) from MeroShare")
+        logger.info(
+            "[info] Transactions: scraped %s row(s) from MeroShare", len(records)
+        )
         tx_payload = transactions_records_to_payload(uid, records, scraped_at)
-        print(
-            f"[info] Transactions: {len(tx_payload)} row(s) in DB payload "
-            "(after filtering totals/empty scrip)"
+        logger.info(
+            "[info] Transactions: %s row(s) in DB payload "
+            "(after filtering totals/empty scrip)",
+            len(tx_payload),
         )
         upsert_transactions(tx_payload)
 
@@ -793,38 +803,36 @@ def main():
         ps_payload = None
         open_syms = open_scrips_from_transaction_records(records)
         if not open_syms:
-            print(
-                "[warn] No open positions in transaction data; skipping purchase source",
-                file=sys.stderr,
+            logger.warning(
+                "[warn] No open positions in transaction data; skipping purchase source"
             )
         else:
-            print(
-                f"[info] Scraping purchase source for {len(open_syms)} open scrip(s)..."
+            logger.info(
+                "[info] Scraping purchase source for %s open scrip(s)...",
+                len(open_syms),
             )
             purchase_rows = scrape_purchase_sources(driver, open_syms)
-            print(
-                f"[info] Purchase sources: scraped {len(purchase_rows)} row(s) "
-                "from MeroShare"
+            logger.info(
+                "[info] Purchase sources: scraped %s row(s) from MeroShare",
+                len(purchase_rows),
             )
             if purchase_rows:
                 fin, _ = finalize_purchase_sources_rows(purchase_rows, records)
                 ps_payload = finalized_purchase_rows_to_payload(uid, fin, scraped_at)
-                print(
-                    f"[info] Purchase sources: finalized {len(fin)} row(s), "
-                    f"DB payload {len(ps_payload)} row(s)"
+                logger.info(
+                    "[info] Purchase sources: finalized %s row(s), "
+                    "DB payload %s row(s)",
+                    len(fin),
+                    len(ps_payload),
                 )
                 if len(fin) > 0 and len(ps_payload) == 0:
-                    print(
+                    logger.warning(
                         "[warn] Purchase rows were finalized but none matched "
-                        "the DB payload (check transaction dates, quantity, and rate).",
-                        file=sys.stderr,
+                        "the DB payload (check transaction dates, quantity, and rate)."
                     )
                 upsert_purchase_sources(ps_payload)
             else:
-                print(
-                    "[warn] No purchase source rows collected",
-                    file=sys.stderr,
-                )
+                logger.warning("[warn] No purchase source rows collected")
 
         summary = (
             f"[info] Scrape summary: transactions {len(records)} scraped → "
@@ -834,7 +842,7 @@ def main():
             pr = len(purchase_rows) if purchase_rows is not None else 0
             pu = len(ps_payload) if ps_payload is not None else 0
             summary += f"; purchase {pr} scraped → {pu} upserted"
-        print(summary)
+        logger.info("%s", summary)
 
     finally:
         driver.quit()
