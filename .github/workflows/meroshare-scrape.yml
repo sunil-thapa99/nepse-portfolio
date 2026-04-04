@@ -17,60 +17,59 @@
 name: MeroShare scrape
 
 on:
-  # schedule:
-  #   - cron: "0 13 * * *"
-  push:
-    branches: [main]
-  workflow_dispatch:
+    # schedule:
+    #   - cron: "0 13 * * *"
+    push:
+        branches: [main]
+    workflow_dispatch:
 
 concurrency:
-  group: meroshare-scrape
-  cancel-in-progress: false
+    group: meroshare-scrape
+    cancel-in-progress: false
 
 permissions:
-  contents: read
+    contents: read
 
 jobs:
-  scrape:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      PYTHONUNBUFFERED: "1"
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: browser-actions/setup-chrome@v1
-        with:
-          chrome-version: stable
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: pyproject.toml
-
-      - name: Install package
-        run: |
-          python -m pip install --upgrade pip
-          pip install .
-      - name: Install ChromeDriver
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y chromium-chromedriver
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libnss3 \
-            libxss1 \
-            libasound2t64 \
-            libatk-bridge2.0-0 \
-            libgtk-3-0
-
-      - name: Run MeroShare scraper
+    scrape:
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-        run: python main.py --all-credential-users 2>&1 | tee output.log
+            PYTHONUNBUFFERED: "1"
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Remove existing Chrome
+              run: sudo apt purge google-chrome-stable
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+                  cache: pip
+                  cache-dependency-path: pyproject.toml
+
+            - name: Install xvfb
+              run: sudo apt-get install -y xvfb
+
+            - name: Install package
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install .
+
+            - name: Install system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    libnss3 \
+                    libxss1 \
+                    libasound2t64 \
+                    libatk-bridge2.0-0 \
+                    libgtk-3-0
+
+            - name: Run MeroShare scraper
+              env:
+                  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+                  SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+                  ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+                  SCRAPE_USER_ID: ${{ secrets.SCRAPE_USER_ID }}
+              run: python main.py --user-id "$SCRAPE_USER_ID" 2>&1 | tee output.log

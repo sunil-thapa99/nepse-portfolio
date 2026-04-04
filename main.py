@@ -37,21 +37,57 @@ logger = logging.getLogger(__name__)
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
 
+_browser_env_initialized = False
+_linux_virtual_display: Optional[object] = None
+
+
+def _ensure_scraper_browser_env() -> None:
+    """
+    One-time setup before creating Chrome: optional Xvfb on Linux CI (no DISPLAY),
+    and chromedriver install when CHROMEDRIVER_PATH is not set (e.g. local / GHA).
+    Skipped on typical Docker (CHROMEDRIVER_PATH set) so API import does not need Xvfb.
+    """
+    global _browser_env_initialized, _linux_virtual_display
+    if _browser_env_initialized:
+        return
+    _browser_env_initialized = True
+
+    if (
+        sys.platform == "linux"
+        and not os.environ.get("DISPLAY", "").strip()
+        and (
+            os.environ.get("GITHUB_ACTIONS") == "true"
+            or os.environ.get("MEROSHARE_USE_VIRTUAL_DISPLAY", "").lower()
+            in ("1", "true", "yes")
+        )
+    ):
+        from pyvirtualdisplay import Display
+
+        _linux_virtual_display = Display(visible=0, size=(1200, 1200))
+        _linux_virtual_display.start()
+
+    if not os.environ.get("CHROMEDRIVER_PATH", "").strip():
+        import chromedriver_autoinstaller
+
+        chromedriver_autoinstaller.install()
+
 
 def build_driver(
     headless: bool = True, download_dir: Optional[str] = None
 ) -> webdriver.Chrome:
+    _ensure_scraper_browser_env()
     options = Options()
     if headless:
         options.add_argument("--headless=new")
     options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1920,1080")
+    options.add_argument("--window-size=1200,1200")
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
     )
+    options.add_argument("--ignore-certificate-errors")
     if download_dir:
         abs_dir = os.path.abspath(download_dir)
         os.makedirs(abs_dir, exist_ok=True)
