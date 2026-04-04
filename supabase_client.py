@@ -26,17 +26,30 @@ def _jwt_role_without_verify(token: str) -> str | None:
         return None
 
 
-_url = os.environ["SUPABASE_URL"].strip()
-_key = os.environ["SUPABASE_SERVICE_KEY"].strip()
+def _create_client() -> Client:
+    _url = os.environ["SUPABASE_URL"].strip()
+    _key = os.environ["SUPABASE_SERVICE_KEY"].strip()
+    _role = _jwt_role_without_verify(_key)
+    if _role is not None and _role != "service_role":
+        raise RuntimeError(
+            "SUPABASE_SERVICE_KEY must be the service_role JWT from Supabase "
+            "(Project Settings → API → service_role secret). "
+            "Do not use the anon/publishable key or a logged-in user's access token — "
+            "PostgREST would enforce RLS and writes fail with 42501. "
+            f"Decoded JWT role is {_role!r}. Restart the API after fixing `.env`."
+        )
+    return create_client(_url, _key)
 
-_role = _jwt_role_without_verify(_key)
-if _role is not None and _role != "service_role":
-    raise RuntimeError(
-        "SUPABASE_SERVICE_KEY must be the service_role JWT from Supabase "
-        "(Project Settings → API → service_role secret). "
-        "Do not use the anon/publishable key or a logged-in user's access token — "
-        "PostgREST would enforce RLS and writes fail with 42501. "
-        f"Decoded JWT role is {_role!r}. Restart the API after fixing `.env`."
-    )
 
-supabase: Client = create_client(_url, _key)
+class _LazySupabase:
+    """Defer create_client until first use so imports (e.g. unit tests) work without env vars."""
+
+    _client: Client | None = None
+
+    def __getattr__(self, name: str):
+        if self._client is None:
+            self._client = _create_client()
+        return getattr(self._client, name)
+
+
+supabase: Client = _LazySupabase()  # type: ignore[assignment]
