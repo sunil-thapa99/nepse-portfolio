@@ -71,5 +71,4 @@ jobs:
                   SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
                   SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
                   ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-                  SCRAPE_USER_ID: ${{ secrets.SCRAPE_USER_ID }}
-              run: python main.py --user-id "$SCRAPE_USER_ID" 2>&1 | tee output.log
+              run: python main.py --all-credential-users 2>&1 | tee output.log
