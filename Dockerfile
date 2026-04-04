@@ -41,4 +41,4 @@ RUN pip install --upgrade pip \
 # Render sets PORT at runtime; default for local docker run.
 EXPOSE 10000
 
-CMD ["sh", "-c", "exec uvicorn api_app:app --host 0.0.0.0 --port ${PORT:-10000}"]
+CMD ["sh", "-c", "exec uvicorn api_app:app --port ${PORT:-10000}"]

@@ -74,7 +74,7 @@ cp .env.example .env
 | `VITE_SUPABASE_URL` | Same project URL for the browser (Vite only exposes `VITE_*`). |
 | `VITE_SUPABASE_ANON_KEY` | Anon key for the React app. |
 | `VITE_API_BASE_URL` | Optional. Full API origin with scheme, no trailing slash, when the API is not same-origin (production). Omit locally: Vite proxies `/api` and `/refresh`. |
-| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API (e.g. `https://your-app.vercel.app`). Default: `http://localhost:5173,http://127.0.0.1:5173`. |
+| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API. **Production:** set to the exact dashboard origin (same URL as the browser address bar, no path) or the browser blocks `POST /refresh` and `POST /api/...`. Default: local Vite only. |
 | `CHROME_BIN` | Optional. Chromium/Chrome binary path (set automatically in [`Dockerfile`](Dockerfile)). |
 | `CHROMEDRIVER_PATH` | Optional. Path to `chromedriver` matching that browser (set in Docker image). |
 
@@ -126,7 +126,23 @@ docker run --rm -p 10000:10000 -e PORT=10000 --env-file .env nepse-api
 curl http://localhost:10000/health
 ```
 
-**Render (Docker Web Service):** connect the repo, choose **Docker**, use **≥ 2 GB RAM** if possible, set the env vars above, health check path **`/health`**. Render provides **`PORT`**.
+**Render (Docker Web Service):** connect the repo, choose **Docker**, use **≥ 2 GB RAM** if possible, set the env vars above, health check path **`/health`**. Render provides **`PORT`**. Optional: use root [`render.yaml`](render.yaml) as a Blueprint so `CORS_ALLOW_ORIGINS` and secrets are defined up front (`sync: false` → set values in the Render dashboard).
+
+**CORS on Render:** the API defaults to allowing only `http://localhost:5173` and `http://127.0.0.1:5173`. For a hosted dashboard (Vercel, Netlify, Render Static Site, etc.), set **`CORS_ALLOW_ORIGINS`** on the API service to that site’s origin, comma-separated if you have several (e.g. preview URLs). **`www`** vs apex domain are different origins.
+
+**Production frontend:** build the React app with **`VITE_API_BASE_URL`** set to your API URL (no trailing slash), e.g. `https://your-service.onrender.com`, so `Refresh data` calls the right host. See [`web/.env.production.example`](web/.env.production.example).
+
+**Verify CORS after deploy:** replace the origins with yours; the response should include `access-control-allow-origin` matching the `Origin` you send (and status `200` for the preflight):
+
+```bash
+curl -sS -o /dev/null -w "health %{http_code}\n" "https://YOUR-API.onrender.com/health"
+curl -sS -D - -o /dev/null -X OPTIONS "https://YOUR-API.onrender.com/refresh" \
+  -H "Origin: https://YOUR-SPA.example" \
+  -H "Access-Control-Request-Method: POST" \
+  -H "Access-Control-Request-Headers: authorization"
+```
+
+Then use the dashboard → **Refresh data** and confirm in DevTools **Network** that `POST /refresh` is **200** with `{"status":"scraper started"}` and no CORS errors in the **Console**.
 
 You can run **only** GitHub Actions for scrapes and host a minimal API without Chromium—but then **Refresh data** on that host will not run a real browser unless the API image includes Chrome/Chromium.
 
