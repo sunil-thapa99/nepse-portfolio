@@ -1,11 +1,9 @@
-chromedriver-autoinstaller>=0.6
 cryptography>=42
 lxml>=5.0
 fastapi>=0.115
 httpx>=0.27
 pandas<3,>=2.0
-pyvirtualdisplay>=3.0
+playwright>=1.40
 python-dotenv>=1.0
-selenium>=4.15
 supabase>=2.0
 uvicorn[standard]>=0.32

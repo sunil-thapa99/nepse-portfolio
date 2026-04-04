@@ -1,4 +1,4 @@
-# MeroShare scheduled scrape: Selenium (Chrome headless) on ubuntu-latest.
+# MeroShare scheduled scrape: Playwright (Chrome headless) on ubuntu-latest.
 #
 # Required GitHub Actions secrets (Settings → Secrets and variables → Actions):
 #   SUPABASE_URL            — Supabase project URL
@@ -17,10 +17,10 @@
 name: MeroShare scrape
 
 on:
-    schedule:
-      - cron: "0 13 * * *"
-    # push:
-    #     branches: [main]
+    # schedule:
+    #   - cron: "0 13 * * *"
+    push:
+        branches: [main]
     workflow_dispatch:
 
 concurrency:
@@ -36,6 +36,7 @@ jobs:
         timeout-minutes: 60
         env:
             PYTHONUNBUFFERED: "1"
+            CHROME_BIN: /usr/bin/google-chrome-stable
         steps:
             - uses: actions/checkout@v4
 
@@ -55,9 +56,6 @@ jobs:
                   python-version: "3.12"
                   cache: pip
                   cache-dependency-path: pyproject.toml
-
-            - name: Install xvfb
-              run: sudo apt-get install -y xvfb
 
             - name: Install package
               run: |

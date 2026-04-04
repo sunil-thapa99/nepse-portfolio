@@ -1,4 +1,4 @@
-"""Supabase: fetch credentials, line hashes, upserts for Selenium scraper."""
+"""Supabase: fetch credentials, line hashes, upserts for MeroShare scraper."""
 
 from __future__ import annotations
 

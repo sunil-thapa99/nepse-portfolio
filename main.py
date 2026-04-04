@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import datetime as dt
 import io
 import logging
@@ -11,15 +12,8 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set, Tuple
 
 import pandas as pd
-from selenium.common.exceptions import TimeoutException
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import WebDriverWait
 from dotenv import load_dotenv
+from playwright.async_api import Page, TimeoutError as PWTimeoutError, async_playwright
 
 from scraper_db import (
     fetch_meroshare_credentials,
@@ -37,115 +31,14 @@ logger = logging.getLogger(__name__)
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
 
-_browser_env_initialized = False
-_linux_virtual_display: Optional[object] = None
+MEROSHARE_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
+)
 
 
-def _ensure_scraper_browser_env() -> None:
-    """
-    One-time setup before creating Chrome: optional Xvfb on Linux CI (no DISPLAY),
-    and chromedriver install when CHROMEDRIVER_PATH is not set (e.g. local / GHA).
-    Skipped on typical Docker (CHROMEDRIVER_PATH set) so API import does not need Xvfb.
-    """
-    global _browser_env_initialized, _linux_virtual_display
-    if _browser_env_initialized:
-        return
-    _browser_env_initialized = True
-
-    if (
-        sys.platform == "linux"
-        and not os.environ.get("DISPLAY", "").strip()
-        and (
-            os.environ.get("GITHUB_ACTIONS") == "true"
-            or os.environ.get("MEROSHARE_USE_VIRTUAL_DISPLAY", "").lower()
-            in ("1", "true", "yes")
-        )
-    ):
-        from pyvirtualdisplay import Display
-
-        _linux_virtual_display = Display(visible=0, size=(1200, 1200))
-        _linux_virtual_display.start()
-
-    if not os.environ.get("CHROMEDRIVER_PATH", "").strip():
-        import chromedriver_autoinstaller
-
-        chromedriver_autoinstaller.install()
-
-
-def build_driver(
-    headless: bool = True, download_dir: Optional[str] = None
-) -> webdriver.Chrome:
-    _ensure_scraper_browser_env()
-    options = Options()
-    if headless:
-        options.add_argument("--headless=new")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--window-size=1200,1200")
-    options.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-    )
-    options.add_argument("--ignore-certificate-errors")
-    if download_dir:
-        abs_dir = os.path.abspath(download_dir)
-        os.makedirs(abs_dir, exist_ok=True)
-        prefs = {
-            "download.default_directory": abs_dir,
-            "download.prompt_for_download": False,
-            "download.directory_upgrade": True,
-        }
-        options.add_experimental_option("prefs", prefs)
-
-    chrome_bin = os.environ.get("CHROME_BIN", "").strip()
-    if chrome_bin:
-        options.binary_location = chrome_bin
-
-    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH", "").strip()
-    if chromedriver_path:
-        service = Service(executable_path=chromedriver_path)
-        driver = webdriver.Chrome(service=service, options=options)
-    else:
-        driver = webdriver.Chrome(options=options)
-    return driver
-
-
-def _csv_basenames_in_dir(directory: str) -> Set[str]:
-    names: Set[str] = set()
-    try:
-        for name in os.listdir(directory):
-            if name.lower().endswith(".csv"):
-                names.add(name)
-    except FileNotFoundError:
-        pass
-    return names
-
-
-def _wait_for_new_csv(
-    download_dir: str, before: Set[str], timeout: float = 60
-) -> Optional[str]:
-    """Wait until Chrome finishes downloading a new .csv (no .crdownload left)."""
-    deadline = time.time() + timeout
-    abs_dir = os.path.abspath(download_dir)
-    while time.time() < deadline:
-        try:
-            listing = os.listdir(abs_dir)
-        except FileNotFoundError:
-            time.sleep(0.3)
-            continue
-        if any(n.endswith(".crdownload") for n in listing):
-            time.sleep(0.3)
-            continue
-        for name in listing:
-            if name.lower().endswith(".csv") and name not in before:
-                return os.path.join(abs_dir, name)
-        time.sleep(0.3)
-    return None
-
-
-def login_meroshare(
-    driver: webdriver.Chrome,
+async def login_meroshare(
+    page: Page,
     username: str,
     password: str,
     dp_name: str,
@@ -159,76 +52,62 @@ def login_meroshare(
         "purchase" — open My Purchase Source (#/purchase).
         "dashboard" — stay on post-login home (no extra navigation).
     """
-    driver.get(MEROSHARE_URL)
+    # SPA: "domcontentloaded" is often too early; "load" + attached-state waits
+    # match Selenium's presence_of_element_located (DOM present, not necessarily visible yet).
+    await page.goto(MEROSHARE_URL, wait_until="load", timeout=60_000)
+    await asyncio.sleep(2)
 
     try:
-        # Wait for login page to load - look for DP dropdown or login form
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".select2-selection.select2-selection--single")
-            )
+        await page.wait_for_selector(".select2-selection.select2-selection--single", timeout=20000)
+
+        await page.click(".select2-selection.select2-selection--single")
+        await page.wait_for_timeout(1000)
+        # dp_dropdown = page.locator(".select2-selection.select2-selection--single").first
+        # await dp_dropdown.scroll_into_view_if_needed()
+        # await asyncio.sleep(0.5)
+        # try:
+        #     await dp_dropdown.click(timeout=15_000)
+        # except PWTimeoutError:
+        #     await dp_dropdown.evaluate("el => el.click()")
+        # await asyncio.sleep(1)
+
+        search_field = page.locator(".select2-search__field")
+        await search_field.wait_for(state="visible", timeout=10_000)
+        await search_field.fill("")
+        await search_field.fill(dp_name)
+        await asyncio.sleep(1)
+
+        option_xpath = (
+            f"//li[contains(@class, 'select2-results__option') "
+            f"and contains(text(), '{dp_name}')]"
         )
+        option = page.locator(f"xpath={option_xpath}")
+        await option.wait_for(state="visible", timeout=10_000)
+        await option.click()
+        await asyncio.sleep(1)
 
-        # Select DP (Depository Participant)
-        # Click on the select2 dropdown
-        dp_dropdown = WebDriverWait(driver, 15).until(
-            EC.element_to_be_clickable(
-                (By.CSS_SELECTOR, ".select2-selection.select2-selection--single")
-            )
-        )
-        dp_dropdown.click()
-        time.sleep(1)
+        username_input = page.locator("#username")
+        await username_input.wait_for(state="visible", timeout=10_000)
+        await username_input.fill("")
+        await username_input.fill(username)
 
-        # Type DP name in search field
-        search_field = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, ".select2-search__field"))
-        )
-        search_field.clear()
-        search_field.send_keys(dp_name)
-        time.sleep(1)
+        password_input = page.locator("#password")
+        await password_input.wait_for(state="visible", timeout=10_000)
+        await password_input.fill("")
+        await password_input.fill(password)
 
-        # Wait for results and click the matching option
-        option_xpath = f"//li[contains(@class, 'select2-results__option') and contains(text(), '{dp_name}')]"
-        option = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.XPATH, option_xpath))
-        )
-        option.click()
-        time.sleep(1)
+        login_button = page.locator("button.btn.sign-in[type='submit']")
+        await login_button.wait_for(state="visible", timeout=10_000)
+        await login_button.click()
 
-        # Fill username
-        username_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "username"))
-        )
-        username_input.clear()
-        username_input.send_keys(username)
-
-        # Fill password
-        password_input = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.ID, "password"))
-        )
-        password_input.clear()
-        password_input.send_keys(password)
-
-        # Click login button
-        login_button = WebDriverWait(driver, 10).until(
-            EC.element_to_be_clickable((By.CSS_SELECTOR, "button.btn.sign-in[type='submit']"))
-        )
-        login_button.click()
-
-        # Wait for navigation away from login page (success) or error message (failure)
-        time.sleep(3)
-
-        # Check if we're still on login page (login failed)
-        time.sleep(2)  # Wait a bit more for navigation
-        current_url = driver.current_url
+        await asyncio.sleep(3)
+        await asyncio.sleep(2)
+        current_url = page.url
         if "login" in current_url.lower():
-            # Check for error messages
             try:
-                error_elements = driver.find_elements(
-                    By.CSS_SELECTOR, ".error, .alert-danger, [class*='error']"
-                )
-                if error_elements:
-                    error_text = error_elements[0].text
+                errs = page.locator(".error, .alert-danger, [class*='error']")
+                if await errs.count() > 0:
+                    error_text = (await errs.first.inner_text()).strip()
                     logger.error("[error] Login failed: %s", error_text)
                     return False
             except Exception:
@@ -236,32 +115,29 @@ def login_meroshare(
             logger.error("[error] Login failed: Still on login page")
             return False
 
-        time.sleep(2)
+        await asyncio.sleep(2)
         if after_login == "transaction":
             try:
-                transactions_link = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable(
-                        (
-                            By.XPATH,
-                            "//a[contains(@href, 'transaction') or contains(., 'My Transaction History')]",
-                        )
-                    )
+                tx_link = page.locator(
+                    "xpath=//a[contains(@href, 'transaction') or "
+                    "contains(., 'My Transaction History')]"
                 )
-                transactions_link.click()
-                time.sleep(3)
-                if "transaction" not in driver.current_url.lower():
-                    driver.get(f"{MEROSHARE_URL}#/transaction")
-                    time.sleep(3)
+                await tx_link.wait_for(state="visible", timeout=10_000)
+                await tx_link.click()
+                await asyncio.sleep(3)
+                if "transaction" not in page.url.lower():
+                    await page.goto(f"{MEROSHARE_URL}#/transaction", wait_until="domcontentloaded")
+                    await asyncio.sleep(3)
             except Exception as e:
                 logger.warning(
                     "[warn] Could not navigate to My Transactions via link, trying direct URL: %s",
                     e,
                 )
-                driver.get(f"{MEROSHARE_URL}#/transaction")
-                time.sleep(3)
+                await page.goto(f"{MEROSHARE_URL}#/transaction", wait_until="domcontentloaded")
+                await asyncio.sleep(3)
         elif after_login == "purchase":
-            driver.get(f"{MEROSHARE_URL}#/purchase")
-            time.sleep(3)
+            await page.goto(f"{MEROSHARE_URL}#/purchase", wait_until="domcontentloaded")
+            await asyncio.sleep(3)
         return True
 
     except Exception as e:
@@ -269,8 +145,8 @@ def login_meroshare(
         return False
 
 
-def scrape_transactions(
-    driver: webdriver.Chrome, download_dir: str
+async def scrape_transactions(
+    page: Page, download_dir: str
 ) -> List[Dict[str, str]]:
     """Download transactions CSV (Date filter) and return rows as records."""
     records: List[Dict[str, str]] = []
@@ -278,64 +154,48 @@ def scrape_transactions(
     os.makedirs(abs_download, exist_ok=True)
 
     try:
-        if "transaction" not in driver.current_url.lower():
-            driver.get(f"{MEROSHARE_URL}#/transaction")
-            time.sleep(3)
+        if "transaction" not in page.url.lower():
+            await page.goto(f"{MEROSHARE_URL}#/transaction", wait_until="domcontentloaded")
+            await asyncio.sleep(3)
 
-        before = _csv_basenames_in_dir(abs_download)
+        await page.wait_for_selector(".transaction-radio-btn", timeout=10_000)
+        date_radio = page.locator("#radio-range")
+        await date_radio.wait_for(state="attached", timeout=10_000)
+        await date_radio.evaluate("el => el.scrollIntoView({block: 'center'})")
+        await asyncio.sleep(0.3)
+        await date_radio.evaluate("el => el.click()")
+        await asyncio.sleep(1)
 
-        wait = WebDriverWait(driver, 10)
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, ".transaction-radio-btn")
-            )
-        )
-        date_radio = wait.until(
-            EC.presence_of_element_located((By.ID, "radio-range"))
-        )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", date_radio)
-        time.sleep(0.3)
-        driver.execute_script("arguments[0].click();", date_radio)
-        time.sleep(1)
-
-        wait.until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, "div.button-grouping")
-            )
-        )
+        await page.wait_for_selector("div.button-grouping", timeout=10_000)
 
         try:
-            csv_button = wait.until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//div[contains(@class,'button-grouping')]//button[contains(.,'CSV')]",
-                    )
-                )
-            )
-        except TimeoutException:
-            csv_button = wait.until(
-                EC.element_to_be_clickable(
-                    (
-                        By.XPATH,
-                        "//div[contains(@class,'button-grouping')]"
-                        "//button[.//i[contains(@class,'msi-download-csv')]]",
-                    )
-                )
-            )
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", csv_button)
-        time.sleep(0.3)
-        driver.execute_script("arguments[0].click();", csv_button)
-        time.sleep(1)
+            csv_button = page.locator(
+                "xpath=//div[contains(@class,'button-grouping')]"
+                "//button[contains(.,'CSV')]"
+            ).first
+            await csv_button.wait_for(state="visible", timeout=10_000)
+        except PWTimeoutError:
+            csv_button = page.locator(
+                "xpath=//div[contains(@class,'button-grouping')]"
+                "//button[.//i[contains(@class,'msi-download-csv')]]"
+            ).first
+            await csv_button.wait_for(state="visible", timeout=10_000)
 
-        downloaded = _wait_for_new_csv(abs_download, before, timeout=90)
-        if not downloaded:
-            logger.error("[error] Timed out waiting for CSV download")
-            return records
+        await csv_button.evaluate("el => el.scrollIntoView({block: 'center'})")
+        await asyncio.sleep(0.3)
 
-        df = pd.read_csv(downloaded)
+        async with page.expect_download(timeout=90_000) as download_info:
+            await csv_button.evaluate("el => el.click()")
+        download = await download_info.value
+        suggested = download.suggested_filename
+        if not suggested or not suggested.lower().endswith(".csv"):
+            suggested = "meroshare_transactions.csv"
+        dest = os.path.join(abs_download, suggested)
+        await download.save_as(dest)
+
+        df = pd.read_csv(dest)
         try:
-            os.remove(downloaded)
+            os.remove(dest)
         except OSError:
             pass
         df.columns = df.columns.str.strip()
@@ -401,46 +261,175 @@ def open_scrips_from_transaction_records(records: List[Dict[str, str]]) -> List[
     return sorted(open_syms, key=str.upper)
 
 
-def _find_purchase_script_input(driver: webdriver.Chrome, wait: WebDriverWait):
+async def _find_purchase_script_input(page: Page):
     """Locate the scrip field on My Purchase Source (name=script or fallbacks)."""
     selectors = [
-        (By.CSS_SELECTOR, 'input[name="script"]'),
-        (By.NAME, "script"),
-        (By.NAME, "scrip"),
-        (By.CSS_SELECTOR, 'input[name="scrip"]'),
+        'input[name="script"]',
+        '[name="script"]',
+        '[name="scrip"]',
+        'input[name="scrip"]',
     ]
     last_err: Optional[Exception] = None
-    for by, sel in selectors:
+    for sel in selectors:
         try:
-            el = wait.until(EC.presence_of_element_located((by, sel)))
-            if el.is_displayed():
-                return el
+            loc = page.locator(sel).first
+            await loc.wait_for(state="visible", timeout=10_000)
+            if await loc.is_visible():
+                return loc
         except Exception as e:
             last_err = e
             continue
-    raise TimeoutException(
+    raise RuntimeError(
         f"Could not find purchase scrip input (tried script/scrip). Last error: {last_err}"
     )
 
 
-def _clear_purchase_input(driver: webdriver.Chrome, inp) -> None:
-    """Clear scrip field; JS + events for SPA frameworks, then Selenium clear."""
+async def _clear_purchase_input(loc) -> None:
+    """Clear scrip field; JS + events for SPA frameworks, then keyboard clear."""
     try:
-        driver.execute_script(
-            "var el=arguments[0]; el.value='';"
-            "el.dispatchEvent(new Event('input',{bubbles:true}));"
-            "el.dispatchEvent(new Event('change',{bubbles:true}));",
-            inp,
+        await loc.evaluate(
+            """el => {
+            el.value='';
+            el.dispatchEvent(new Event('input',{bubbles:true}));
+            el.dispatchEvent(new Event('change',{bubbles:true}));
+        }"""
         )
     except Exception:
         pass
     try:
-        mod = Keys.COMMAND if sys.platform == "darwin" else Keys.CONTROL
-        inp.send_keys(mod, "a")
-        inp.send_keys(Keys.BACKSPACE)
+        await loc.click()
+        mod = "Meta" if sys.platform == "darwin" else "Control"
+        await loc.press(f"{mod}+A")
+        await loc.press("Backspace")
     except Exception:
         pass
-    inp.clear()
+    await loc.fill("")
+
+
+async def _find_purchase_result_tables(page: Page, timeout: float = 28.0):
+    """
+    Wait for result tables after Search. Results often load asynchronously; a short
+    fixed sleep misses them. Try Bootstrap table class variants, then any visible
+    <table> with rows.
+    """
+    selectors = [
+        "table.table",
+        "table.table-striped",
+        "table.table-bordered",
+        "table.table-hover",
+        "table.table-sm",
+        ".table-responsive table",
+        "div.table-responsive table",
+    ]
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        for sel in selectors:
+            loc = page.locator(sel)
+            n = await loc.count()
+            visible = []
+            for i in range(n):
+                item = loc.nth(i)
+                if await item.is_visible():
+                    visible.append(item)
+            if visible:
+                return visible
+        await asyncio.sleep(0.4)
+
+    fallback = []
+    tables = page.locator("table")
+    n = await tables.count()
+    for i in range(n):
+        t = tables.nth(i)
+        if not await t.is_visible():
+            continue
+        rows = t.locator("tr")
+        if await rows.count() >= 1:
+            fallback.append(t)
+    return fallback
+
+
+async def scrape_purchase_sources(
+    page: Page,
+    scrips: List[str],
+    *,
+    pause_sec: float = 1.5,
+) -> List[Dict[str, str]]:
+    """For each scrip, search My Purchase Source; each result table maps to canonical purchase rows."""
+    all_rows: List[Dict[str, str]] = []
+    await page.goto(f"{MEROSHARE_URL}#/purchase", wait_until="domcontentloaded")
+    await asyncio.sleep(2.5)
+
+    try:
+        await _find_purchase_script_input(page)
+    except Exception as e:
+        logger.error("[error] Purchase page did not load expected input: %s", e)
+        return all_rows
+
+    to_scrape = [str(s).strip() for s in scrips if str(s).strip()]
+    for i, sym in enumerate(to_scrape, start=1):
+        logger.info(
+            "[info] Scraping purchase source for scrip %s/%s: %s",
+            i,
+            len(to_scrape),
+            sym,
+        )
+        try:
+            inp = await _find_purchase_script_input(page)
+            await _clear_purchase_input(inp)
+            await asyncio.sleep(0.15)
+            await inp.fill(sym)
+
+            try:
+                search_btn = page.locator(
+                    "xpath=//button[contains(., 'Search') or contains(., 'SEARCH')]"
+                ).first
+                await search_btn.wait_for(state="visible", timeout=10_000)
+            except PWTimeoutError:
+                search_btn = page.locator(
+                    "button.btn[type='submit'], input[type='submit']"
+                ).first
+                await search_btn.wait_for(state="visible", timeout=10_000)
+
+            await search_btn.evaluate("el => el.scrollIntoView({block: 'center'})")
+            await asyncio.sleep(0.2)
+            await search_btn.evaluate("el => el.click()")
+            await asyncio.sleep(0.45)
+
+            tables = await _find_purchase_result_tables(page, timeout=28.0)
+            dfs: List[pd.DataFrame] = []
+            for table in tables:
+                html = await table.evaluate("el => el.outerHTML") or ""
+                if not html.strip():
+                    continue
+                try:
+                    parsed = pd.read_html(io.StringIO(html))
+                except (ValueError, ImportError) as parse_err:
+                    logger.warning(
+                        "[warn] read_html failed for %r: %s", sym, parse_err
+                    )
+                    continue
+                if parsed:
+                    tdf = parsed[0]
+                    tdf.columns = tdf.columns.str.strip()
+                    dfs.append(tdf)
+
+            if not dfs:
+                logger.warning(
+                    "[warn] No parseable purchase tables for scrip %r "
+                    "(after waiting for table selectors)",
+                    sym,
+                )
+                await asyncio.sleep(pause_sec)
+                continue
+            for tdf in dfs:
+                all_rows.extend(_normalize_purchase_table_df(tdf, sym))
+
+        except Exception as e:
+            logger.warning(
+                "[warn] Purchase source scrape failed for %r: %s", sym, e
+            )
+        await asyncio.sleep(pause_sec)
+    return all_rows
 
 
 def _purchase_col_index(df: pd.DataFrame) -> Dict[str, str]:
@@ -620,131 +609,6 @@ def _purchase_fill_dates_from_transactions(
         rec["Transaction Date"] = dates[0]
 
 
-def _find_purchase_result_tables(driver: webdriver.Chrome, timeout: float = 28.0):
-    """
-    Wait for result tables after Search. Results often load asynchronously; a short
-    fixed sleep misses them. Try Bootstrap table class variants, then any visible
-    <table> with rows.
-    """
-    selectors = [
-        "table.table",
-        "table.table-striped",
-        "table.table-bordered",
-        "table.table-hover",
-        "table.table-sm",
-        ".table-responsive table",
-        "div.table-responsive table",
-    ]
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        for sel in selectors:
-            found = driver.find_elements(By.CSS_SELECTOR, sel)
-            visible = [t for t in found if t.is_displayed()]
-            if visible:
-                return visible
-        time.sleep(0.4)
-
-    fallback = []
-    for t in driver.find_elements(By.TAG_NAME, "table"):
-        if not t.is_displayed():
-            continue
-        rows = t.find_elements(By.CSS_SELECTOR, "tr")
-        if len(rows) >= 1:
-            fallback.append(t)
-    return fallback
-
-
-def scrape_purchase_sources(
-    driver: webdriver.Chrome,
-    scrips: List[str],
-    *,
-    pause_sec: float = 1.5,
-) -> List[Dict[str, str]]:
-    """For each scrip, search My Purchase Source; each result table maps to canonical purchase rows."""
-    all_rows: List[Dict[str, str]] = []
-    driver.get(f"{MEROSHARE_URL}#/purchase")
-    time.sleep(2.5)
-    wait = WebDriverWait(driver, 10)
-
-    try:
-        _find_purchase_script_input(driver, wait)
-    except Exception as e:
-        logger.error("[error] Purchase page did not load expected input: %s", e)
-        return all_rows
-
-    to_scrape = [str(s).strip() for s in scrips if str(s).strip()]
-    for i, sym in enumerate(to_scrape, start=1):
-        logger.info(
-            "[info] Scraping purchase source for scrip %s/%s: %s",
-            i,
-            len(to_scrape),
-            sym,
-        )
-        try:
-            inp = _find_purchase_script_input(driver, wait)
-            _clear_purchase_input(driver, inp)
-            time.sleep(0.15)
-            inp.send_keys(sym)
-
-            try:
-                search_btn = WebDriverWait(driver, 10).until(
-                    EC.element_to_be_clickable(
-                        (
-                            By.XPATH,
-                            "//button[contains(., 'Search') or contains(., 'SEARCH')]",
-                        )
-                    )
-                )
-            except TimeoutException:
-                search_btn = driver.find_element(
-                    By.CSS_SELECTOR,
-                    "button.btn[type='submit'], input[type='submit']",
-                )
-            driver.execute_script(
-                "arguments[0].scrollIntoView({block: 'center'});", search_btn
-            )
-            time.sleep(0.2)
-            driver.execute_script("arguments[0].click();", search_btn)
-            # Let SPA replace or inject result tables before polling (avoids stale/empty grab).
-            time.sleep(0.45)
-
-            tables = _find_purchase_result_tables(driver, timeout=28.0)
-            dfs: List[pd.DataFrame] = []
-            for table in tables:
-                html = table.get_attribute("outerHTML") or ""
-                if not html.strip():
-                    continue
-                try:
-                    parsed = pd.read_html(io.StringIO(html))
-                except (ValueError, ImportError) as parse_err:
-                    logger.warning(
-                        "[warn] read_html failed for %r: %s", sym, parse_err
-                    )
-                    continue
-                if parsed:
-                    tdf = parsed[0]
-                    tdf.columns = tdf.columns.str.strip()
-                    dfs.append(tdf)
-
-            if not dfs:
-                logger.warning(
-                    "[warn] No parseable purchase tables for scrip %r "
-                    "(after waiting for table selectors)",
-                    sym,
-                )
-                time.sleep(pause_sec)
-                continue
-            for tdf in dfs:
-                all_rows.extend(_normalize_purchase_table_df(tdf, sym))
-
-        except Exception as e:
-            logger.warning(
-                "[warn] Purchase source scrape failed for %r: %s", sym, e
-            )
-        time.sleep(pause_sec)
-    return all_rows
-
-
 def finalize_purchase_sources_rows(
     records: List[Dict[str, str]],
     transaction_records: Optional[List[Dict[str, str]]],
@@ -773,10 +637,10 @@ class ScraperError(Exception):
     """Raised when the MeroShare scrape cannot complete successfully."""
 
 
-def run_scraper(user_id: str, *, headless: bool = True) -> None:
+async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
     """
-    Load credentials for user_id, run Selenium scrape, upsert transactions and purchase_sources.
-    Raises ScraperError on expected failures; may propagate other exceptions from I/O or Selenium.
+    Load credentials for user_id, run Playwright scrape, upsert transactions and purchase_sources.
+    Raises ScraperError on expected failures; may propagate other exceptions from I/O or Playwright.
     """
     try:
         username, password, dp = fetch_meroshare_credentials(user_id)
@@ -789,84 +653,113 @@ def run_scraper(user_id: str, *, headless: bool = True) -> None:
         ) from e
 
     tmp_download = tempfile.mkdtemp(prefix="meroshare_tx_dl_")
-    driver = build_driver(headless=headless, download_dir=tmp_download)
-
+    os.makedirs(os.path.abspath(tmp_download), exist_ok=True)
     try:
-        logger.info("[info] Logging into MeroShare with DP: %s", dp)
-        scraped_at = (
-            dt.datetime.now(dt.timezone.utc)
-            .astimezone()
-            .isoformat(timespec="seconds")
-        )
-        uid = user_id
+        async with async_playwright() as p:
+            launch_kwargs = {
+                "headless": headless,
+                "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+            }
+            chrome_bin = os.environ.get("CHROME_BIN", "").strip()
+            if chrome_bin:
+                launch_kwargs["executable_path"] = chrome_bin
 
-        if not login_meroshare(
-            driver, username, password, dp, after_login="transaction"
-        ):
-            raise ScraperError("Login failed")
-        logger.info("[info] Login successful, scraping transactions...")
-        records = scrape_transactions(driver, tmp_download)
-        if not records:
-            raise ScraperError("No transactions data found")
-        logger.info(
-            "[info] Transactions: scraped %s row(s) from MeroShare", len(records)
-        )
-        tx_payload = transactions_records_to_payload(uid, records, scraped_at)
-        logger.info(
-            "[info] Transactions: %s row(s) in DB payload "
-            "(after filtering totals/empty scrip)",
-            len(tx_payload),
-        )
-        upsert_transactions(tx_payload)
-
-        purchase_rows = None
-        ps_payload = None
-        open_syms = open_scrips_from_transaction_records(records)
-        if not open_syms:
-            logger.warning(
-                "[warn] No open positions in transaction data; skipping purchase source"
+            browser = await p.chromium.launch(**launch_kwargs)
+            context = await browser.new_context(
+                accept_downloads=True,
+                user_agent=MEROSHARE_USER_AGENT,
+                viewport={"width": 1200, "height": 1200},
+                ignore_https_errors=True,
             )
-        else:
-            logger.info(
-                "[info] Scraping purchase source for %s open scrip(s)...",
-                len(open_syms),
-            )
-            purchase_rows = scrape_purchase_sources(driver, open_syms)
-            logger.info(
-                "[info] Purchase sources: scraped %s row(s) from MeroShare",
-                len(purchase_rows),
-            )
-            if purchase_rows:
-                fin, _ = finalize_purchase_sources_rows(purchase_rows, records)
-                ps_payload = finalized_purchase_rows_to_payload(uid, fin, scraped_at)
-                logger.info(
-                    "[info] Purchase sources: finalized %s row(s), "
-                    "DB payload %s row(s)",
-                    len(fin),
-                    len(ps_payload),
+            page = await context.new_page()
+            try:
+                logger.info("[info] Logging into MeroShare with DP: %s", dp)
+                scraped_at = (
+                    dt.datetime.now(dt.timezone.utc)
+                    .astimezone()
+                    .isoformat(timespec="seconds")
                 )
-                if len(fin) > 0 and len(ps_payload) == 0:
+                uid = user_id
+
+                if not await login_meroshare(
+                    page, username, password, dp, after_login="transaction"
+                ):
+                    raise ScraperError("Login failed")
+                logger.info("[info] Login successful, scraping transactions...")
+                records = await scrape_transactions(page, tmp_download)
+                if not records:
+                    raise ScraperError("No transactions data found")
+                logger.info(
+                    "[info] Transactions: scraped %s row(s) from MeroShare",
+                    len(records),
+                )
+                tx_payload = transactions_records_to_payload(
+                    uid, records, scraped_at
+                )
+                logger.info(
+                    "[info] Transactions: %s row(s) in DB payload "
+                    "(after filtering totals/empty scrip)",
+                    len(tx_payload),
+                )
+                upsert_transactions(tx_payload)
+
+                purchase_rows = None
+                ps_payload = None
+                open_syms = open_scrips_from_transaction_records(records)
+                if not open_syms:
                     logger.warning(
-                        "[warn] Purchase rows were finalized but none matched "
-                        "the DB payload (check transaction dates, quantity, and rate)."
+                        "[warn] No open positions in transaction data; "
+                        "skipping purchase source"
                     )
-                upsert_purchase_sources(ps_payload)
-            else:
-                logger.warning("[warn] No purchase source rows collected")
+                else:
+                    logger.info(
+                        "[info] Scraping purchase source for %s open scrip(s)...",
+                        len(open_syms),
+                    )
+                    purchase_rows = await scrape_purchase_sources(page, open_syms)
+                    logger.info(
+                        "[info] Purchase sources: scraped %s row(s) from MeroShare",
+                        len(purchase_rows),
+                    )
+                    if purchase_rows:
+                        fin, _ = finalize_purchase_sources_rows(
+                            purchase_rows, records
+                        )
+                        ps_payload = finalized_purchase_rows_to_payload(
+                            uid, fin, scraped_at
+                        )
+                        logger.info(
+                            "[info] Purchase sources: finalized %s row(s), "
+                            "DB payload %s row(s)",
+                            len(fin),
+                            len(ps_payload),
+                        )
+                        if len(fin) > 0 and len(ps_payload) == 0:
+                            logger.warning(
+                                "[warn] Purchase rows were finalized but none matched "
+                                "the DB payload (check transaction dates, quantity, and rate)."
+                            )
+                        upsert_purchase_sources(ps_payload)
+                    else:
+                        logger.warning("[warn] No purchase source rows collected")
 
-        summary = (
-            f"[info] Scrape summary: transactions {len(records)} scraped → "
-            f"{len(tx_payload)} upserted"
-        )
-        if open_syms:
-            pr = len(purchase_rows) if purchase_rows is not None else 0
-            pu = len(ps_payload) if ps_payload is not None else 0
-            summary += f"; purchase {pr} scraped → {pu} upserted"
-        logger.info("%s", summary)
-
+                summary = (
+                    f"[info] Scrape summary: transactions {len(records)} scraped → "
+                    f"{len(tx_payload)} upserted"
+                )
+                if open_syms:
+                    pr = len(purchase_rows) if purchase_rows is not None else 0
+                    pu = len(ps_payload) if ps_payload is not None else 0
+                    summary += f"; purchase {pr} scraped → {pu} upserted"
+                logger.info("%s", summary)
+            finally:
+                await browser.close()
     finally:
-        driver.quit()
         shutil.rmtree(tmp_download, ignore_errors=True)
+
+
+def run_scraper(user_id: str, *, headless: bool = True) -> None:
+    asyncio.run(async_run_scraper(user_id, headless=headless))
 
 
 def main():
@@ -944,4 +837,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

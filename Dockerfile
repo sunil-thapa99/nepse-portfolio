@@ -1,4 +1,4 @@
-# FastAPI + Selenium (Chromium) for hosts like Render.
+# FastAPI + Playwright (system Chromium) for hosts like Render.
 # Build: docker build -t nepse-api .
 # Run:  docker run --rm -p 10000:10000 -e PORT=10000 --env-file .env nepse-api
 
@@ -6,13 +6,11 @@ FROM python:3.12-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    CHROME_BIN=/usr/bin/chromium \
-    CHROMEDRIVER_PATH=/usr/bin/chromedriver
+    CHROME_BIN=/usr/bin/chromium
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         chromium \
-        chromium-driver \
         ca-certificates \
         fonts-liberation \
         libasound2 \
