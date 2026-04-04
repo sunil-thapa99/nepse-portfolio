@@ -93,6 +93,12 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+def health() -> dict:
+    """Lightweight check for load balancers (e.g. Render health path)."""
+    return {"status": "ok"}
+
+
 @app.post("/api/meroshare/credentials")
 def post_meroshare_credentials(
     body: MeroshareCredentialsBody,

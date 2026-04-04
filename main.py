@@ -14,6 +14,7 @@ import pandas as pd
 from selenium.common.exceptions import TimeoutException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -59,7 +60,17 @@ def build_driver(
             "download.directory_upgrade": True,
         }
         options.add_experimental_option("prefs", prefs)
-    driver = webdriver.Chrome(options=options)
+
+    chrome_bin = os.environ.get("CHROME_BIN", "").strip()
+    if chrome_bin:
+        options.binary_location = chrome_bin
+
+    chromedriver_path = os.environ.get("CHROMEDRIVER_PATH", "").strip()
+    if chromedriver_path:
+        service = Service(executable_path=chromedriver_path)
+        driver = webdriver.Chrome(service=service, options=options)
+    else:
+        driver = webdriver.Chrome(options=options)
     return driver
 
 

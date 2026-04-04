@@ -1,110 +1,142 @@
 # nepse-portfolio
 
-Utility to log into [MeroShare](https://meroshare.cdsc.com.np/), pull **My Transaction History** (downloaded in the browser to a temp file, then parsed), and scrape **My Purchase Source** HTML tables for open positions. The **CLI requires `--user-id`**: it upserts into Supabase tables **`transactions`** and **`purchase_sources`** (see [`DB/main.sql`](DB/main.sql)); nothing is written to user-facing CSV paths.
+Stack: **React** (dashboard), **FastAPI** (API + scrape trigger), **Selenium** (MeroShare), **Supabase** (auth + Postgres), optional **GitHub Actions** (scheduled scrape).
 
-The **React dashboard** loads both tables with the Supabase client only—no CSV upload or file pairing.
+The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My Transaction History** to a temp CSV, parses it, then scrapes **My Purchase Source** HTML for open positions. It **upserts** **`transactions`** and **`purchase_sources`** in Supabase (see [`DB/main.sql`](DB/main.sql)); there is no user-facing CSV export path.
 
-## Requirements
+---
 
-- Python 3.10+
-- [uv](https://docs.astral.sh/uv/) (recommended) or another PEP 621–aware installer
-- [Google Chrome](https://www.google.com/chrome/) installed (Selenium drives Chrome; Selenium 4 resolves a matching ChromeDriver automatically in most setups)
+## Architecture and data flow
 
-## Setup
+| Piece | Role |
+| ----- | ---- |
+| **React** ([`web/`](web/)) | Reads **`transactions`** and **`purchase_sources`** with the Supabase client (RLS → signed-in user). Calls FastAPI only to save credentials and to start a scrape. |
+| **FastAPI** ([`api_app.py`](api_app.py)) | Verifies JWTs against Supabase Auth, encrypts passwords to **`meroshare_credentials`**, queues **`run_scraper()`** on **POST `/refresh`** (non-blocking). |
+| **Scraper** ([`main.py`](main.py)) | **`run_scraper(user_id, …)`** loads credentials from Supabase, runs headless Chrome, upserts tables. Used by the API (in-process background task) and by **CLI / GitHub Actions** (`python main.py --user-id …`). |
+| **GitHub Actions** ([`.github/workflows/meroshare-scrape.yml`](.github/workflows/meroshare-scrape.yml)) | Cron (or manual) run of **`python main.py --user-id $SCRAPE_USER_ID`**. Does **not** call FastAPI. |
 
-Use a virtual environment in the project directory named `env/` (not `.venv`). Point uv at it so it does not create a separate `.venv`:
+**Frontend never talks to GitHub Actions.** Manual refresh goes **React → FastAPI → `run_scraper` → Supabase**. Scheduled refresh goes **Actions → `main.py` → Supabase**.
+
+---
+
+## End-to-end dashboard flow
+
+1. User signs in with **Supabase Auth**; the app loads portfolio rows from Supabase.
+2. User saves MeroShare username/password/DP via **POST `/api/meroshare/credentials`** (Bearer JWT). The API stores an encrypted password in **`meroshare_credentials`**.
+3. User clicks **Refresh data** → **POST `/refresh`** (Bearer JWT). The API checks that credentials exist, enqueues **`run_scraper`** in a **background task**, and returns immediately **`{"status": "scraper started"}`**.
+4. The UI shows a short loading state, then a success message. The scrape continues on the server; the app may refetch from Supabase after a delay. New data appears once the scrape finishes writing to Supabase.
+
+---
+
+## FastAPI endpoints
+
+| Method | Path | Purpose |
+| ------ | ---- | ------- |
+| `GET` | `/health` | Load balancer / platform health (`{"status": "ok"}`). |
+| `POST` | `/api/meroshare/credentials` | Body: `username`, `password`, `dp_id`. Requires `Authorization: Bearer <access_token>`. |
+| `POST` | `/refresh` | Starts scrape for the JWT user in the background. Requires saved credentials. Response: `{"status": "scraper started"}`. |
+
+**CORS:** [`CORS_ALLOW_ORIGINS`](#configuration) (comma-separated). Defaults to local Vite URLs.
+
+---
+
+## Scraper CLI and scheduled runs
+
+- **Shared logic:** **`run_scraper()`** in [`main.py`](main.py). **`main()`** is the CLI entry (`--user-id` required; `--no-headless` optional).
+- **GitHub Actions:** set secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ENCRYPTION_KEY`, `SCRAPE_USER_ID`. Workflow runs `python main.py --user-id "$SCRAPE_USER_ID"` on Ubuntu with Chrome/Chromium (see workflow file).
+
+**Prerequisites for any scrape:**
+
+1. SQL: [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) or fresh [`DB/main.sql`](DB/main.sql) (includes `line_hash` and unique `(user_id, line_hash)`).
+2. `.env` (or host env) with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, **`ENCRYPTION_KEY`**.
+3. A **`meroshare_credentials`** row for that user (saved from the dashboard).
 
 ```bash
-python -m venv env   # skip if env/ already exists
-export UV_PROJECT_ENVIRONMENT=env   # Windows (cmd): set UV_PROJECT_ENVIRONMENT=env
-uv sync
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless   # debug
 ```
 
-`uv sync` installs dependencies from [`pyproject.toml`](pyproject.toml) and the lockfile [`uv.lock`](uv.lock) into `env/`. Commit `uv.lock` so everyone gets the same versions.
+If MeroShare changes the purchase UI, adjust selectors in `main.py` (e.g. `input[name="script"]`, Search button, tables).
 
-Optional: `source env/bin/activate` when you want `python` / `pip` on your `PATH` without the `uv` prefix. To sync into an activated venv instead of using `UV_PROJECT_ENVIRONMENT`, run `uv sync --active`.
+---
 
 ## Configuration
-
-Copy the example env file and set Supabase and API values:
 
 ```bash
 cp .env.example .env
 ```
 
-| Variable                 | Description                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| `SUPABASE_URL`           | Project URL (Supabase **Settings → API**; Python API and scraper)           |
-| `VITE_SUPABASE_URL`      | Same URL as `SUPABASE_URL` (React app; Vite exposes only `VITE_*` to the browser) |
-| `VITE_SUPABASE_ANON_KEY` | Anon/public key (used by the React app)                                     |
-| `VITE_API_BASE_URL`      | Optional. Set in production when the API is not same-origin (see [Transaction dashboard](#transaction-dashboard-react)); omit locally so Vite proxies `/api` and `/refresh` |
-| `SUPABASE_SERVICE_KEY`   | Service role key (Python Supabase client and the credentials API; keep secret) |
-| `ENCRYPTION_KEY`         | Fernet key for encrypting MeroShare passwords stored in the database (API)   |
-| `CORS_ALLOW_ORIGINS`     | Comma-separated browser origins allowed to call the FastAPI app (default: local Vite URLs). Set to your Vercel/Netlify site URL(s) in production. |
+| Variable | Description |
+| -------- | ----------- |
+| `SUPABASE_URL` | Project URL (Python, scraper, server-side Supabase client). |
+| `SUPABASE_SERVICE_KEY` | Service role key (keep secret; used by API and scraper). |
+| `ENCRYPTION_KEY` | Fernet key for passwords at rest in `meroshare_credentials`. Generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
+| `VITE_SUPABASE_URL` | Same project URL for the browser (Vite only exposes `VITE_*`). |
+| `VITE_SUPABASE_ANON_KEY` | Anon key for the React app. |
+| `VITE_API_BASE_URL` | Optional. Full API origin with scheme, no trailing slash, when the API is not same-origin (production). Omit locally: Vite proxies `/api` and `/refresh`. |
+| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API (e.g. `https://your-app.vercel.app`). Default: `http://localhost:5173,http://127.0.0.1:5173`. |
+| `CHROME_BIN` | Optional. Chromium/Chrome binary path (set automatically in [`Dockerfile`](Dockerfile)). |
+| `CHROMEDRIVER_PATH` | Optional. Path to `chromedriver` matching that browser (set in Docker image). |
 
-Generate `ENCRYPTION_KEY`:
+---
 
-```bash
-python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-```
+## Local development
 
-### Scraper CLI (`--user-id` required)
+**Requirements:** Python 3.10+, [uv](https://docs.astral.sh/uv/) (recommended), [Google Chrome](https://www.google.com/chrome/) for local Selenium (Selenium 4 usually resolves ChromeDriver).
 
-The scraper loads `username`, `password_encrypted`, and `dp_id` from **`meroshare_credentials`** using the **service role** client, decrypts the password with **`ENCRYPTION_KEY`** (same Fernet key as [`api_app.py`](api_app.py)), and **upserts** rows into **`transactions`** and **`purchase_sources`** with a stable **`line_hash`**.
-
-**Prerequisites:**
-
-1. Apply the SQL migration [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) (adds `line_hash` and unique `(user_id, line_hash)` on both tables). Fresh installs using [`DB/main.sql`](DB/main.sql) already include these columns.
-2. The user must have saved MeroShare credentials once via the dashboard (POST `/api/meroshare/credentials` with a valid JWT) so a `meroshare_credentials` row exists.
-3. Set `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and **`ENCRYPTION_KEY`** in `.env` (same as the API).
-
-Examples:
+Use a venv named `env/` and point uv at it (see [uv docs](https://docs.astral.sh/uv/)):
 
 ```bash
-# Transaction export → upsert transactions → purchase source for open scrips
-uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
-
-# Visible browser (debugging)
-uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless
+python -m venv env
+export UV_PROJECT_ENVIRONMENT=env   # Windows (cmd): set UV_PROJECT_ENVIRONMENT=env
+uv sync
 ```
 
-Each run: transaction export in browser → upsert **`transactions`** → derive open scrips (`balance > 0` from the scrape) → scrape **My Purchase Source** HTML → upsert **`purchase_sources`**. If there are no open positions, purchase scraping is skipped.
+`uv sync` reads [`pyproject.toml`](pyproject.toml) and [`uv.lock`](uv.lock); commit `uv.lock` for reproducible installs. Optional: `source env/bin/activate` or `uv sync --active`.
 
-If MeroShare changes the purchase page, you may need to adjust selectors in `main.py` (`input[name="script"]`, Search button, result tables).
-
-## Transaction dashboard (React)
-
-The app in [`web/`](web/) loads **`transactions`** and **`purchase_sources`** from Supabase for the signed-in user (RLS limits rows to `auth.uid()`). Sign in with Supabase Auth, save MeroShare credentials via **POST `/api/meroshare/credentials`**, then use **Refresh data** to run the scraper.
-
-**Refresh data** calls **POST `/refresh`** with the user’s JWT. The API verifies the token, checks that `meroshare_credentials` exists, then starts the Selenium scraper in a **background task** and returns immediately (`{"status": "scraper started"}`). The dashboard shows a short success message and refetches from Supabase once after a delay; data updates when the server-side scrape finishes.
-
-The **hosted API** must have **Chrome/Chromium** (and a matching driver, or Selenium Manager) plus `SUPABASE_*`, `ENCRYPTION_KEY`, and enough memory—same as running [`main.py`](main.py) locally. **Scheduled** scrapes can continue to run only in [GitHub Actions](.github/workflows/meroshare-scrape.yml) (`python main.py --user-id …`) so the API does not need a browser if you only use the cron job.
-
-**Deploying the API (e.g. Render, Railway):** use a **Dockerfile** or install **chromium** and **chromedriver** on the host (similar to the Actions workflow). The scraper already passes `--headless=new`, `--no-sandbox`, and `--disable-dev-shm-usage` for container-friendly Chrome. Set `CORS_ALLOW_ORIGINS` to your frontend origin(s). If the browser binary is non-standard, set `CHROME_BIN` (or adjust Selenium options) per your platform’s docs.
-
-**Development:** run the API and the Vite dev server in two terminals (from the repo root, with `.env` loaded and `ENCRYPTION_KEY` set):
+**Terminal 1 — API** (repo root, `.env` present):
 
 ```bash
 uv run uvicorn api_app:app --reload --port 8000
 ```
 
-```bash
-cd web
-npm install
-npm run dev
-```
-
-Vite proxies `/api` and `/refresh` to `http://127.0.0.1:8000`. Open the URL Vite prints (usually `http://localhost:5173`). **WACC** and **Invested** use a **weighted average** from purchase **detail** rows when present (BONUS lots count as zero NPR cost in the numerator); otherwise the MeroShare **summary** row is used. The stock detail table adds a **Rate (NPR)** column by matching purchase lines to buy rows on date and quantity. Symbols without usable purchase data still show em dashes for those fields.
-
-For production, set `VITE_API_BASE_URL` to your API origin (including scheme, no trailing slash) if it is not same-origin as the static site, and set `CORS_ALLOW_ORIGINS` on the API to that frontend origin.
+**Terminal 2 — frontend:**
 
 ```bash
-cd web
-npm run build   # production build to web/dist
-npm test        # Vitest (frontend lib + components)
+cd web && npm install && npm run dev
 ```
 
-**Python tests** (from repo root, uses the same `uv` environment as the scraper):
+Vite proxies **`/api`** and **`/refresh`** to `http://127.0.0.1:8000`. Open the printed URL (e.g. `http://localhost:5173`).
+
+**Portfolio math:** **WACC** / **Invested** use a weighted average from purchase **detail** rows when present (BONUS lots as zero NPR in the numerator); otherwise the MeroShare **summary** row. Stock detail adds **Rate (NPR)** by matching purchase lines to buys on date and quantity.
+
+---
+
+## Production API (Docker / Render)
+
+The **[`Dockerfile`](Dockerfile)** installs **Chromium** + **chromium-driver**, installs the Python package, and runs:
+
+`uvicorn api_app:app --host 0.0.0.0 --port $PORT`
+
+**Local smoke test:**
+
+```bash
+docker build -t nepse-api .
+docker run --rm -p 10000:10000 -e PORT=10000 --env-file .env nepse-api
+curl http://localhost:10000/health
+```
+
+**Render (Docker Web Service):** connect the repo, choose **Docker**, use **≥ 2 GB RAM** if possible, set the env vars above, health check path **`/health`**. Render provides **`PORT`**.
+
+You can run **only** GitHub Actions for scrapes and host a minimal API without Chromium—but then **Refresh data** on that host will not run a real browser unless the API image includes Chrome/Chromium.
+
+---
+
+## Tests and frontend build
+
+```bash
+cd web && npm run build && npm test
+```
 
 ```bash
 uv run python -m unittest discover -s tests -v

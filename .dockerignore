@@ -1,0 +1,16 @@
+.git
+.github
+**/__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.venv
+env
+web/node_modules
+web/dist
+*.egg-info
+.env
+.cursor
+tests
+DB
+uv.lock
