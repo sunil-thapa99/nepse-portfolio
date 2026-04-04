@@ -15,7 +15,7 @@ RUN apt-get update \
         chromium-driver \
         ca-certificates \
         fonts-liberation \
-        libasound2 \
+        libasound2t64 \
         libatk-bridge2.0-0 \
         libatk1.0-0 \
         libcups2 \

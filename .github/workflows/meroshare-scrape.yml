@@ -16,8 +16,10 @@
 name: MeroShare scrape
 
 on:
-  schedule:
-    - cron: "0 13 * * *"
+  # schedule:
+  #   - cron: "0 13 * * *"
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -61,7 +63,7 @@ jobs:
           sudo apt-get install -y \
             libnss3 \
             libxss1 \
-            libasound2 \
+            libasound2t64 \
             libatk-bridge2.0-0 \
             libgtk-3-0
 
