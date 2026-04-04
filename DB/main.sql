@@ -22,6 +22,7 @@ create table transactions (
   balance_after_transaction numeric,
   history_description text,
   scraped_at timestamptz not null,
+  -- sha256 hex of user_id|scrip|transaction_date|credit|debit (see scraper_db.py, migrations/003)
   line_hash text not null,
   created_at timestamptz default now(),
   unique (user_id, line_hash)
@@ -37,6 +38,7 @@ create table purchase_sources (
   rate numeric not null,
   purchase_source text not null,
   scraped_at timestamptz not null,
+  -- sha256 hex of user_id|scrip|transaction_date|quantity (see scraper_db.py, migrations/003)
   line_hash text not null,
   created_at timestamptz default now(),
   unique (user_id, line_hash)

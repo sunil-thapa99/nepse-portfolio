@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional, Tuple
 
 import pandas as pd
@@ -67,19 +68,27 @@ def _parse_tx_date(rec: Dict[str, str]) -> str:
         return raw
 
 
+def _canonical_numeric_for_hash(v: Optional[float]) -> str:
+    """Text form of stored numeric for line_hash; aligned with Postgres numeric::text."""
+    if v is None:
+        return ""
+    try:
+        d = Decimal(str(v))
+    except InvalidOperation:
+        return ""
+    if d == d.to_integral_value():
+        return str(int(d))
+    s = format(d, "f").rstrip("0").rstrip(".")
+    return s if s else "0"
+
+
 def transaction_line_hash(user_id: str, rec: Dict[str, str]) -> str:
-    """Stable SHA-256 hex; aligns with DB/migrations/002_scraper_upsert.sql."""
+    """Stable SHA-256 hex; preimage user_id|scrip|date|credit|debit (DB/migrations/003)."""
     scrip = (rec.get("Scrip") or "").strip().upper()
     d = _parse_tx_date(rec)
-    cq = _norm_tx_field(rec.get("Credit Quantity"))
-    dq = _norm_tx_field(rec.get("Debit Quantity"))
-    bq = _norm_tx_field(rec.get("Balance After Transaction"))
-    hraw = rec.get("History Description")
-    if hraw is None or (isinstance(hraw, float) and pd.isna(hraw)):
-        hist = ""
-    else:
-        hist = str(hraw).strip()
-    s = "|".join([user_id, scrip, d, cq, dq, bq, hist])
+    cq = _canonical_numeric_for_hash(_parse_num_for_db(rec.get("Credit Quantity")))
+    dq = _canonical_numeric_for_hash(_parse_num_for_db(rec.get("Debit Quantity")))
+    s = "|".join([user_id, scrip, d, cq, dq])
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
 
@@ -149,27 +158,20 @@ def upsert_transactions(rows: List[Dict[str, Any]]) -> None:
     logger.info("[info] Transactions upsert: finished (%s row(s)).", n)
 
 
-def _norm_purchase_field(v: Any) -> str:
-    return _norm_tx_field(v)
-
-
 def purchase_line_hash(
     user_id: str,
     scrip: str,
     transaction_date_iso: str,
-    quantity_s: str,
-    rate_s: str,
-    purchase_source: str,
+    quantity: float,
 ) -> str:
-    src = (purchase_source or "").strip()
+    """Stable SHA-256 hex; preimage user_id|scrip|date|quantity (DB/migrations/003)."""
+    q = _canonical_numeric_for_hash(quantity)
     s = "|".join(
         [
             user_id,
             scrip.strip().upper(),
             transaction_date_iso,
-            _norm_purchase_field(quantity_s),
-            _norm_purchase_field(rate_s),
-            src,
+            q,
         ]
     )
     return hashlib.sha256(s.encode("utf-8")).hexdigest()
@@ -208,13 +210,9 @@ def finalized_purchase_rows_to_payload(
         if qty is None:
             continue
         # HTML tables sometimes omit rate; DB requires numeric rate — default to 0.0.
-        rate_for_hash_s = rate_s
         if rate is None:
             rate = 0.0
-            rate_for_hash_s = "0" if not (rate_s or "").strip() else rate_s
-        lh = purchase_line_hash(
-            user_id, scrip, td.isoformat(), qty_s, rate_for_hash_s, src
-        )
+        lh = purchase_line_hash(user_id, scrip, td.isoformat(), qty)
         out.append(
             {
                 "user_id": user_id,

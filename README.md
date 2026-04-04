@@ -47,7 +47,7 @@ The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My 
 
 **Prerequisites for any scrape:**
 
-1. SQL: [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) or fresh [`DB/main.sql`](DB/main.sql) (includes `line_hash` and unique `(user_id, line_hash)`).
+1. SQL: fresh [`DB/main.sql`](DB/main.sql), or run [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) then [`DB/migrations/003_line_hash_natural_keys.sql`](DB/migrations/003_line_hash_natural_keys.sql) on existing DBs (`line_hash` upsert key; see comments in `main.sql`).
 2. `.env` (or host env) with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, **`ENCRYPTION_KEY`**.
 3. A **`meroshare_credentials`** row for that user (saved from the dashboard).
 
