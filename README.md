@@ -37,9 +37,10 @@ cp .env.example .env
 | `SUPABASE_URL`           | Project URL (Supabase **Settings → API**; Python API and scraper)           |
 | `VITE_SUPABASE_URL`      | Same URL as `SUPABASE_URL` (React app; Vite exposes only `VITE_*` to the browser) |
 | `VITE_SUPABASE_ANON_KEY` | Anon/public key (used by the React app)                                     |
-| `VITE_API_BASE_URL`      | Optional. Set in production when the API is not same-origin (see [Transaction dashboard](#transaction-dashboard-react)); omit locally so Vite proxies `/api` |
+| `VITE_API_BASE_URL`      | Optional. Set in production when the API is not same-origin (see [Transaction dashboard](#transaction-dashboard-react)); omit locally so Vite proxies `/api` and `/refresh` |
 | `SUPABASE_SERVICE_KEY`   | Service role key (Python Supabase client and the credentials API; keep secret) |
 | `ENCRYPTION_KEY`         | Fernet key for encrypting MeroShare passwords stored in the database (API)   |
+| `CORS_ALLOW_ORIGINS`     | Comma-separated browser origins allowed to call the FastAPI app (default: local Vite URLs). Set to your Vercel/Netlify site URL(s) in production. |
 
 Generate `ENCRYPTION_KEY`:
 
@@ -75,7 +76,11 @@ If MeroShare changes the purchase page, you may need to adjust selectors in `mai
 
 The app in [`web/`](web/) loads **`transactions`** and **`purchase_sources`** from Supabase for the signed-in user (RLS limits rows to `auth.uid()`). Sign in with Supabase Auth, save MeroShare credentials via **POST `/api/meroshare/credentials`**, then use **Refresh data** to run the scraper.
 
-**Refresh data** calls **POST `/api/scrape`** with the user’s JWT. The API verifies the token, checks that `meroshare_credentials` exists, then runs `uv run python main.py --user-id <uuid>` in a subprocess (same machine must have **Chrome**, **`uv`**, and repo **`.env`** with `SUPABASE_*`, `ENCRYPTION_KEY`, etc.). After a successful scrape, the dashboard refetches from Supabase.
+**Refresh data** calls **POST `/refresh`** with the user’s JWT. The API verifies the token, checks that `meroshare_credentials` exists, then starts the Selenium scraper in a **background task** and returns immediately (`{"status": "scraper started"}`). The dashboard shows a short success message and refetches from Supabase once after a delay; data updates when the server-side scrape finishes.
+
+The **hosted API** must have **Chrome/Chromium** (and a matching driver, or Selenium Manager) plus `SUPABASE_*`, `ENCRYPTION_KEY`, and enough memory—same as running [`main.py`](main.py) locally. **Scheduled** scrapes can continue to run only in [GitHub Actions](.github/workflows/meroshare-scrape.yml) (`python main.py --user-id …`) so the API does not need a browser if you only use the cron job.
+
+**Deploying the API (e.g. Render, Railway):** use a **Dockerfile** or install **chromium** and **chromedriver** on the host (similar to the Actions workflow). The scraper already passes `--headless=new`, `--no-sandbox`, and `--disable-dev-shm-usage` for container-friendly Chrome. Set `CORS_ALLOW_ORIGINS` to your frontend origin(s). If the browser binary is non-standard, set `CHROME_BIN` (or adjust Selenium options) per your platform’s docs.
 
 **Development:** run the API and the Vite dev server in two terminals (from the repo root, with `.env` loaded and `ENCRYPTION_KEY` set):
 
@@ -89,9 +94,9 @@ npm install
 npm run dev
 ```
 
-Vite proxies `/api` to `http://127.0.0.1:8000`. Open the URL Vite prints (usually `http://localhost:5173`). **WACC** and **Invested** use a **weighted average** from purchase **detail** rows when present (BONUS lots count as zero NPR cost in the numerator); otherwise the MeroShare **summary** row is used. The stock detail table adds a **Rate (NPR)** column by matching purchase lines to buy rows on date and quantity. Symbols without usable purchase data still show em dashes for those fields.
+Vite proxies `/api` and `/refresh` to `http://127.0.0.1:8000`. Open the URL Vite prints (usually `http://localhost:5173`). **WACC** and **Invested** use a **weighted average** from purchase **detail** rows when present (BONUS lots count as zero NPR cost in the numerator); otherwise the MeroShare **summary** row is used. The stock detail table adds a **Rate (NPR)** column by matching purchase lines to buy rows on date and quantity. Symbols without usable purchase data still show em dashes for those fields.
 
-For production, set `VITE_API_BASE_URL` to your API origin if it is not same-origin as the static site.
+For production, set `VITE_API_BASE_URL` to your API origin (including scheme, no trailing slash) if it is not same-origin as the static site, and set `CORS_ALLOW_ORIGINS` on the API to that frontend origin.
 
 ```bash
 cd web

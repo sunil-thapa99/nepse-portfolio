@@ -1,21 +1,19 @@
-"""FastAPI app: POST /api/meroshare/credentials (JWT + Fernet + Supabase upsert)."""
+"""FastAPI app: POST /api/meroshare/credentials, POST /refresh (background scraper)."""
 
 import logging
 import os
-import shutil
-import subprocess
-from pathlib import Path
 
 import httpx
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
 
 load_dotenv()
 
+from main import ScraperError, run_scraper
 from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -23,8 +21,12 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 
-_REPO_ROOT = Path(__file__).resolve().parent
-_SCRAPE_TIMEOUT_SEC = 3600
+_DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173"
+
+
+def _cors_allow_origins() -> list[str]:
+    raw = os.environ.get("CORS_ALLOW_ORIGINS", _DEFAULT_CORS)
+    return [o.strip() for o in raw.split(",") if o.strip()]
 
 
 def _fernet() -> Fernet:
@@ -60,6 +62,20 @@ def _format_postgrest_error(e: APIError) -> str:
     return " ".join(parts).strip() or "Supabase request failed"
 
 
+def _run_scraper_background(user_id: str) -> None:
+    try:
+        run_scraper(user_id, headless=True)
+        logger.info("Background scraper finished successfully for user_id=%s", user_id)
+    except ScraperError as e:
+        logger.error(
+            "Background scraper failed for user_id=%s: %s",
+            user_id,
+            e,
+        )
+    except Exception:
+        logger.exception("Background scraper crashed for user_id=%s", user_id)
+
+
 class MeroshareCredentialsBody(BaseModel):
     username: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
@@ -70,10 +86,7 @@ app = FastAPI(title="nepse-portfolio API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=_cors_allow_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -148,14 +161,20 @@ def _bearer_token(request: Request) -> str:
     return token
 
 
-@app.post("/api/scrape")
-def post_scrape(request: Request) -> dict:
+@app.post("/refresh")
+def post_refresh(request: Request, background_tasks: BackgroundTasks) -> dict:
     """
-    Verify JWT, ensure MeroShare credentials exist, run Selenium scraper subprocess
-    (main.py --user-id ...) to refresh transactions / purchase_sources.
+    Verify JWT, ensure MeroShare credentials exist, start Selenium scraper in a
+    background thread pool. Returns immediately.
     """
     token = _bearer_token(request)
-    user_id = verify_jwt_user_id(token)
+    try:
+        user_id = verify_jwt_user_id(token)
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not verify token with Supabase Auth: {e!s}",
+        ) from e
 
     cred = (
         supabase.table("meroshare_credentials")
@@ -170,34 +189,6 @@ def post_scrape(request: Request) -> dict:
             detail="Save MeroShare credentials in the dashboard before scraping.",
         )
 
-    uv = shutil.which("uv")
-    if uv:
-        cmd = [uv, "run", "python", "main.py", "--user-id", user_id]
-    else:
-        cmd = [
-            os.environ.get("PYTHON", "python3"),
-            str(_REPO_ROOT / "main.py"),
-            "--user-id",
-            user_id,
-        ]
-
-    # Inherit stdout/stderr so main.py logging appears in the uvicorn terminal.
-    # (capture_output=True would hide scraper logs entirely.)
-    logger.info("Starting scraper subprocess: %s", " ".join(cmd))
-    proc = subprocess.run(
-        cmd,
-        cwd=str(_REPO_ROOT),
-        timeout=_SCRAPE_TIMEOUT_SEC,
-        env=os.environ.copy(),
-    )
-    if proc.returncode != 0:
-        logger.error("Scraper subprocess exited with code %s", proc.returncode)
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Scraper failed (exit {proc.returncode}). "
-                "See the API server terminal for full log output."
-            ),
-        )
-
-    return {"ok": True}
+    background_tasks.add_task(_run_scraper_background, user_id)
+    logger.info("Queued background scraper for user_id=%s", user_id)
+    return {"status": "scraper started"}

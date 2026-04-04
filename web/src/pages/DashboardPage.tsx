@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "../lib/apiUrl";
 import {
   buildPortfolioFromDb,
@@ -61,6 +61,10 @@ export default function DashboardPage() {
   const [scraping, setScraping] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
+  const [scrapeStartedMessage, setScrapeStartedMessage] = useState<string | null>(
+    null
+  );
+  const scrapeReloadTimerRef = useRef<number | null>(null);
   const [filter, setFilter] = useState("");
   const [rawDataView, setRawDataView] = useState<"positions" | "transactions">(
     "positions"
@@ -108,6 +112,15 @@ export default function DashboardPage() {
     }
     void loadData();
   }, [authLoading, session, loadData]);
+
+  useEffect(() => {
+    return () => {
+      if (scrapeReloadTimerRef.current != null) {
+        window.clearTimeout(scrapeReloadTimerRef.current);
+        scrapeReloadTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const portfolioBuild = useMemo((): {
     portfolio: PortfolioResult | null;
@@ -204,8 +217,9 @@ export default function DashboardPage() {
     if (!session?.access_token) return;
     setScraping(true);
     setScrapeError(null);
+    setScrapeStartedMessage(null);
     try {
-      const res = await fetch(apiUrl("/api/scrape"), {
+      const res = await fetch(apiUrl("/refresh"), {
         method: "POST",
         headers: {
           Authorization: `Bearer ${session.access_token}`,
@@ -222,7 +236,16 @@ export default function DashboardPage() {
         setScrapeError(msg);
         return;
       }
-      await loadData();
+      setScrapeStartedMessage(
+        "Scraper started on the server. Data in Supabase will update when it finishes—check back in a few minutes or reload this page."
+      );
+      if (scrapeReloadTimerRef.current != null) {
+        window.clearTimeout(scrapeReloadTimerRef.current);
+      }
+      scrapeReloadTimerRef.current = window.setTimeout(() => {
+        scrapeReloadTimerRef.current = null;
+        void loadData();
+      }, 45_000);
     } catch (e) {
       setScrapeError(errMsg(e));
     } finally {
@@ -231,6 +254,10 @@ export default function DashboardPage() {
   }, [session, loadData]);
 
   const displayError = fetchError ?? portfolioError ?? scrapeError;
+
+  const dismissScrapeStarted = useCallback(() => {
+    setScrapeStartedMessage(null);
+  }, []);
 
   if (authLoading) {
     return (
@@ -281,12 +308,26 @@ export default function DashboardPage() {
       <main className="mx-auto max-w-6xl space-y-10 px-4 py-8">
         <MeroshareCredentials />
 
-        {(loading || scraping) && (
+        {loading && (
           <div className="flex items-center gap-2 text-sm text-slate-400">
             <Spinner />
-            {scraping
-              ? "Running MeroShare scraper (this may take several minutes)…"
-              : "Loading portfolio data…"}
+            Loading portfolio data…
+          </div>
+        )}
+
+        {scrapeStartedMessage && (
+          <div
+            className="flex flex-col gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-100 sm:flex-row sm:items-center sm:justify-between"
+            role="status"
+          >
+            <span>{scrapeStartedMessage}</span>
+            <button
+              type="button"
+              onClick={dismissScrapeStarted}
+              className="shrink-0 rounded-lg border border-emerald-800/80 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-900/40"
+            >
+              Dismiss
+            </button>
           </div>
         )}
 

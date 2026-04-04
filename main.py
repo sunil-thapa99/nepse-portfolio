@@ -721,51 +721,24 @@ def finalize_purchase_sources_rows(
     return finalized, scraped
 
 
-def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Scrape MeroShare and upsert into Supabase: export transaction history in-browser, "
-            "upsert transactions, then scrape My Purchase Source for open scrips. "
-            "Requires --user-id. Purchase rows come from HTML tables."
-        )
-    )
-    parser.add_argument(
-        "--user-id",
-        required=True,
-        metavar="UUID",
-        help=(
-            "Supabase auth user id: load MeroShare credentials from meroshare_credentials, "
-            "decrypt password (ENCRYPTION_KEY), upsert transactions and purchase_sources"
-        ),
-    )
-    parser.add_argument(
-        "--no-headless",
-        action="store_true",
-        help="Run Chrome in visible mode",
-    )
+class ScraperError(Exception):
+    """Raised when the MeroShare scrape cannot complete successfully."""
 
-    args = parser.parse_args()
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(message)s",
-        stream=sys.stderr,
-        force=True,
-    )
-
+def run_scraper(user_id: str, *, headless: bool = True) -> None:
+    """
+    Load credentials for user_id, run Selenium scrape, upsert transactions and purchase_sources.
+    Raises ScraperError on expected failures; may propagate other exceptions from I/O or Selenium.
+    """
     try:
-        username, password, dp = fetch_meroshare_credentials(args.user_id)
+        username, password, dp = fetch_meroshare_credentials(user_id)
     except ValueError as e:
-        logger.error("[error] %s", e)
-        sys.exit(1)
+        raise ScraperError(str(e)) from e
     except Exception as e:
-        logger.error(
-            "[error] Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): %s",
-            e,
-        )
-        sys.exit(1)
-
-    headless = not args.no_headless
+        raise ScraperError(
+            "Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): "
+            f"{e}"
+        ) from e
 
     tmp_download = tempfile.mkdtemp(prefix="meroshare_tx_dl_")
     driver = build_driver(headless=headless, download_dir=tmp_download)
@@ -777,18 +750,16 @@ def main():
             .astimezone()
             .isoformat(timespec="seconds")
         )
-        uid = args.user_id
+        uid = user_id
 
         if not login_meroshare(
             driver, username, password, dp, after_login="transaction"
         ):
-            logger.error("[error] Login failed")
-            sys.exit(1)
+            raise ScraperError("Login failed")
         logger.info("[info] Login successful, scraping transactions...")
         records = scrape_transactions(driver, tmp_download)
         if not records:
-            logger.warning("[warn] No transactions data found")
-            sys.exit(1)
+            raise ScraperError("No transactions data found")
         logger.info(
             "[info] Transactions: scraped %s row(s) from MeroShare", len(records)
         )
@@ -850,6 +821,43 @@ def main():
         shutil.rmtree(tmp_download, ignore_errors=True)
 
 
+def main():
+    parser = argparse.ArgumentParser(
+        description=(
+            "Scrape MeroShare and upsert into Supabase: export transaction history in-browser, "
+            "upsert transactions, then scrape My Purchase Source for open scrips. "
+            "Requires --user-id. Purchase rows come from HTML tables."
+        )
+    )
+    parser.add_argument(
+        "--user-id",
+        required=True,
+        metavar="UUID",
+        help=(
+            "Supabase auth user id: load MeroShare credentials from meroshare_credentials, "
+            "decrypt password (ENCRYPTION_KEY), upsert transactions and purchase_sources"
+        ),
+    )
+    parser.add_argument(
+        "--no-headless",
+        action="store_true",
+        help="Run Chrome in visible mode",
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        stream=sys.stderr,
+        force=True,
+    )
+
+    try:
+        run_scraper(args.user_id, headless=not args.no_headless)
+    except ScraperError as e:
+        logger.error("[error] %s", e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
