@@ -12,8 +12,8 @@ The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My 
 | ----- | ---- |
 | **React** ([`web/`](web/)) | Reads **`transactions`** and **`purchase_sources`** with the Supabase client (RLS → signed-in user). Calls FastAPI only to save credentials and to start a scrape. |
 | **FastAPI** ([`api_app.py`](api_app.py)) | Verifies JWTs against Supabase Auth, encrypts passwords to **`meroshare_credentials`**, queues **`run_scraper()`** on **POST `/refresh`** (non-blocking). |
-| **Scraper** ([`main.py`](main.py)) | **`run_scraper(user_id, …)`** loads credentials from Supabase, runs headless Chrome, upserts tables. Used by the API (in-process background task) and by **CLI / GitHub Actions** (`python main.py --user-id …`). |
-| **GitHub Actions** ([`.github/workflows/meroshare-scrape.yml`](.github/workflows/meroshare-scrape.yml)) | Cron (or manual) run of **`python main.py --user-id $SCRAPE_USER_ID`**. Does **not** call FastAPI. |
+| **Scraper** ([`main.py`](main.py)) | **`run_scraper(user_id, …)`** loads credentials from Supabase, runs headless Chrome, upserts tables. Used by the API (in-process background task) and by **CLI / GitHub Actions** (`python main.py --user-id …` or **`--all-credential-users`**). |
+| **GitHub Actions** ([`.github/workflows/meroshare-scrape.yml`](.github/workflows/meroshare-scrape.yml)) | Cron (or manual) run of **`python main.py --all-credential-users`** (every row in **`meroshare_credentials`**). Does **not** call FastAPI. |
 
 **Frontend never talks to GitHub Actions.** Manual refresh goes **React → FastAPI → `run_scraper` → Supabase**. Scheduled refresh goes **Actions → `main.py` → Supabase**.
 
@@ -42,8 +42,8 @@ The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My 
 
 ## Scraper CLI and scheduled runs
 
-- **Shared logic:** **`run_scraper()`** in [`main.py`](main.py). **`main()`** is the CLI entry (`--user-id` required; `--no-headless` optional).
-- **GitHub Actions:** set secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ENCRYPTION_KEY`, `SCRAPE_USER_ID`. Workflow runs `python main.py --user-id "$SCRAPE_USER_ID"` on Ubuntu with Chrome/Chromium (see workflow file).
+- **Shared logic:** **`run_scraper()`** in [`main.py`](main.py). **`main()`** is the CLI entry: **`--user-id`** or **`--all-credential-users`**; **`--no-headless`** optional.
+- **GitHub Actions:** set secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ENCRYPTION_KEY`. Workflow runs `python main.py --all-credential-users` on Ubuntu with Chrome/Chromium (see workflow file).
 
 **Prerequisites for any scrape:**
 
@@ -54,6 +54,7 @@ The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My 
 ```bash
 uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
 uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless   # debug
+uv run python main.py --all-credential-users   # every user with meroshare_credentials
 ```
 
 If MeroShare changes the purchase UI, adjust selectors in `main.py` (e.g. `input[name="script"]`, Search button, tables).

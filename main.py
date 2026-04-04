@@ -24,6 +24,7 @@ from dotenv import load_dotenv
 from scraper_db import (
     fetch_meroshare_credentials,
     finalized_purchase_rows_to_payload,
+    list_meroshare_credential_user_ids,
     transactions_records_to_payload,
     upsert_purchase_sources,
     upsert_transactions,
@@ -837,17 +838,22 @@ def main():
         description=(
             "Scrape MeroShare and upsert into Supabase: export transaction history in-browser, "
             "upsert transactions, then scrape My Purchase Source for open scrips. "
-            "Requires --user-id. Purchase rows come from HTML tables."
+            "Pass --user-id or --all-credential-users. Purchase rows come from HTML tables."
         )
     )
-    parser.add_argument(
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument(
         "--user-id",
-        required=True,
         metavar="UUID",
         help=(
             "Supabase auth user id: load MeroShare credentials from meroshare_credentials, "
             "decrypt password (ENCRYPTION_KEY), upsert transactions and purchase_sources"
         ),
+    )
+    scope.add_argument(
+        "--all-credential-users",
+        action="store_true",
+        help="Run the scraper once for each user_id in meroshare_credentials",
     )
     parser.add_argument(
         "--no-headless",
@@ -864,8 +870,37 @@ def main():
         force=True,
     )
 
+    headless = not args.no_headless
+
+    if args.all_credential_users:
+        user_ids = list_meroshare_credential_user_ids()
+        if not user_ids:
+            logger.info(
+                "[info] No rows in meroshare_credentials; nothing to scrape (exit 0)"
+            )
+            return
+        failed = 0
+        for uid in user_ids:
+            logger.info("[info] Starting scrape for user_id=%s", uid)
+            try:
+                run_scraper(uid, headless=headless)
+            except ScraperError as e:
+                logger.error("[error] user_id=%s: %s", uid, e)
+                failed += 1
+            except Exception as e:
+                logger.exception("[error] user_id=%s: %s", uid, e)
+                failed += 1
+        if failed:
+            logger.error(
+                "[error] Batch finished with %s failure(s) out of %s user(s)",
+                failed,
+                len(user_ids),
+            )
+            sys.exit(1)
+        return
+
     try:
-        run_scraper(args.user_id, headless=not args.no_headless)
+        run_scraper(args.user_id, headless=headless)
     except ScraperError as e:
         logger.error("[error] %s", e)
         sys.exit(1)

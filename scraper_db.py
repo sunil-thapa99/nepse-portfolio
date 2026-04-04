@@ -34,6 +34,13 @@ def fetch_meroshare_credentials(user_id: str) -> Tuple[str, str, str]:
     return (row["username"], pwd, row["dp_id"])
 
 
+def list_meroshare_credential_user_ids() -> List[str]:
+    """Return every user_id that has a meroshare_credentials row (service_role bypasses RLS)."""
+    res = supabase.table("meroshare_credentials").select("user_id").execute()
+    rows = res.data or []
+    return [str(r["user_id"]) for r in rows if r.get("user_id") is not None]
+
+
 def _norm_tx_field(v: Any) -> str:
     if v is None:
         return ""

@@ -4,7 +4,8 @@
 #   SUPABASE_URL            — Supabase project URL
 #   SUPABASE_SERVICE_KEY    — service_role JWT (not anon); required by supabase_client.py
 #   ENCRYPTION_KEY          — Fernet key for decrypting MeroShare password from DB
-#   SCRAPE_USER_ID          — Supabase auth user UUID for main.py --user-id
+#
+# The job runs main.py --all-credential-users (one scrape per meroshare_credentials row).
 #
 # Verbose runner logging (use only when debugging; avoid leaving enabled):
 #   Repository / org variables: ACTIONS_STEP_DEBUG=true (and optionally ACTIONS_RUNNER_DEBUG=true)
@@ -72,5 +73,4 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
-          SCRAPE_USER_ID: ${{ secrets.SCRAPE_USER_ID }}
-        run: python main.py --user-id "$SCRAPE_USER_ID" 2>&1 | tee output.log
+        run: python main.py --all-credential-users 2>&1 | tee output.log
