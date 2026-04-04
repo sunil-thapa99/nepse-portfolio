@@ -1,10 +1,10 @@
 # Render Blueprint: https://render.com/docs/blueprint-spec
 #
-# CORS_ALLOW_ORIGINS (required for browser "Refresh data"):
-# Set to the exact origin where the React app is served — scheme + host + port
-# if non-default (e.g. https://my-dashboard.vercel.app). Comma-separate
-# multiple origins. Without this, POST /refresh is blocked by the browser
-# when the SPA is not on localhost.
+# CORS_ALLOW_ORIGINS (optional):
+# Comma-separated origins for the hosted dashboard (scheme + host, no path).
+# Leave unset or blank to use api_app._DEFAULT_CORS (local Vite + prod SPA).
+# If you define this in the dashboard, never leave it as an empty string unless
+# you redeployed api_app with empty→default fallback (older builds had no CORS headers).
 #
 # Frontend build: set VITE_API_BASE_URL to this service URL (no trailing slash)
 # in the static host’s build env, e.g. https://nepse-portfolio-xxx.onrender.com

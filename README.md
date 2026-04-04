@@ -75,7 +75,7 @@ cp .env.example .env
 | `VITE_SUPABASE_URL` | Same project URL for the browser (Vite only exposes `VITE_*`). |
 | `VITE_SUPABASE_ANON_KEY` | Anon key for the React app. |
 | `VITE_API_BASE_URL` | Optional. Full API origin with scheme, no trailing slash, when the API is not same-origin (production). Omit locally: Vite proxies `/api` and `/refresh`. |
-| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API. **Production:** set to the exact dashboard origin (same URL as the browser address bar, no path) or the browser blocks `POST /refresh` and `POST /api/...`. Default: local Vite only. |
+| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API. **Unset or blank** falls back to built-in defaults in `api_app.py` (local Vite + production dashboard origin). If you set this on Render, use the exact SPA origin(s) or preflight fails. **`www`** vs apex are different origins. |
 | `CHROME_BIN` | Optional. Chromium/Chrome binary path (set automatically in [`Dockerfile`](Dockerfile)). |
 | `CHROMEDRIVER_PATH` | Optional. Path to `chromedriver` matching that browser (set in Docker image). |
 
@@ -129,7 +129,7 @@ curl http://localhost:10000/health
 
 **Render (Docker Web Service):** connect the repo, choose **Docker**, use **≥ 2 GB RAM** if possible, set the env vars above, health check path **`/health`**. Render provides **`PORT`**. Optional: use root [`render.yaml`](render.yaml) as a Blueprint so `CORS_ALLOW_ORIGINS` and secrets are defined up front (`sync: false` → set values in the Render dashboard).
 
-**CORS on Render:** the API defaults to allowing only `http://localhost:5173` and `http://127.0.0.1:5173`. For a hosted dashboard (Vercel, Netlify, Render Static Site, etc.), set **`CORS_ALLOW_ORIGINS`** on the API service to that site’s origin, comma-separated if you have several (e.g. preview URLs). **`www`** vs apex domain are different origins.
+**CORS on Render:** if **`CORS_ALLOW_ORIGINS`** is missing or **empty** (common with a Blueprint key left blank), the API uses the defaults in [`api_app.py`](api_app.py) (`_DEFAULT_CORS`). To allow extra origins (e.g. Vercel preview URLs), set **`CORS_ALLOW_ORIGINS`** to a comma-separated list. Do not leave the variable defined with an empty value unless you intend to rely on that fallback (after redeploy with the latest `api_app.py`).
 
 **Production frontend:** build the React app with **`VITE_API_BASE_URL`** set to your API URL (no trailing slash), e.g. `https://your-service.onrender.com`, so `Refresh data` calls the right host. See [`web/.env.production.example`](web/.env.production.example).
 

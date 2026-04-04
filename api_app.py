@@ -21,11 +21,15 @@ logger = logging.getLogger(__name__)
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_SERVICE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
 
-_DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173"
+_DEFAULT_CORS = "http://localhost:5173,http://127.0.0.1:5173,https://nepse-portfolio-rosy.vercel.app"
 
 
 def _cors_allow_origins() -> list[str]:
-    raw = os.environ.get("CORS_ALLOW_ORIGINS", _DEFAULT_CORS)
+    # Render/hosts often define CORS_ALLOW_ORIGINS as "" (Blueprint placeholder).
+    # get(..., default) still returns "", which yields an empty allow list and breaks preflight.
+    raw = os.environ.get("CORS_ALLOW_ORIGINS")
+    if raw is None or not str(raw).strip():
+        raw = _DEFAULT_CORS
     return [o.strip() for o in raw.split(",") if o.strip()]
 
 
