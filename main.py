@@ -58,7 +58,7 @@ async def login_meroshare(
     await asyncio.sleep(2)
 
     try:
-        await page.wait_for_selector(".select2-selection.select2-selection--single", timeout=20000)
+        await page.wait_for_selector(".select2-selection.select2-selection--single", timeout=60000)
 
         await page.click(".select2-selection.select2-selection--single")
         await page.wait_for_timeout(1000)

@@ -73,14 +73,19 @@ export default function DashboardPage() {
   const [openOnly, setOpenOnly] = useState(false);
   const [selectedScrip, setSelectedScrip] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!session) {
+  const loadData = useCallback(async (opts?: { silent?: boolean }) => {
+    const {
+      data: { session: s },
+    } = await supabase.auth.getSession();
+    if (!s) {
       setTxRows([]);
       setPurchaseRows([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!opts?.silent) {
+      setLoading(true);
+    }
     setFetchError(null);
     const [txRes, purRes] = await Promise.all([
       supabase
@@ -100,18 +105,20 @@ export default function DashboardPage() {
     if (!purRes.error)
       setPurchaseRows((purRes.data ?? []) as DbPurchaseSourceRow[]);
     setLoading(false);
-  }, [session]);
+  }, []);
+
+  const sessionUserId = session?.user?.id;
 
   useEffect(() => {
     if (authLoading) return;
-    if (!session) {
+    if (!sessionUserId) {
       setTxRows([]);
       setPurchaseRows([]);
       setLoading(false);
       return;
     }
     void loadData();
-  }, [authLoading, session, loadData]);
+  }, [authLoading, sessionUserId, loadData]);
 
   useEffect(() => {
     return () => {
@@ -214,7 +221,10 @@ export default function DashboardPage() {
   );
 
   const handleRefreshScrape = useCallback(async () => {
-    if (!session?.access_token) return;
+    const {
+      data: { session: s },
+    } = await supabase.auth.getSession();
+    if (!s?.access_token) return;
     setScraping(true);
     setScrapeError(null);
     setScrapeStartedMessage(null);
@@ -222,7 +232,7 @@ export default function DashboardPage() {
       const res = await fetch(apiUrl("/refresh"), {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${session.access_token}`,
+          Authorization: `Bearer ${s.access_token}`,
         },
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -244,14 +254,14 @@ export default function DashboardPage() {
       }
       scrapeReloadTimerRef.current = window.setTimeout(() => {
         scrapeReloadTimerRef.current = null;
-        void loadData();
+        void loadData({ silent: true });
       }, 45_000);
     } catch (e) {
       setScrapeError(errMsg(e));
     } finally {
       setScraping(false);
     }
-  }, [session, loadData]);
+  }, [loadData]);
 
   const displayError = fetchError ?? portfolioError ?? scrapeError;
 
@@ -284,15 +294,17 @@ export default function DashboardPage() {
               Data from Supabase — WACC from FIFO cost when purchase sources exist.
             </p>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-3">
             <button
               type="button"
               disabled={scraping || loading}
               onClick={() => void handleRefreshScrape()}
-              className="inline-flex items-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-50"
+              className="inline-flex min-w-[10.5rem] items-center justify-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-50"
+              aria-busy={scraping}
             >
               {scraping ? <Spinner /> : null}
-              Refresh data
+              {scraping ? "Starting scrape…" : "Refresh data"}
             </button>
             <button
               type="button"
@@ -301,6 +313,13 @@ export default function DashboardPage() {
             >
               Sign out
             </button>
+            </div>
+            {scraping ? (
+              <p className="max-w-md text-right text-xs text-slate-500">
+                Contacting the server to start MeroShare import. This usually
+                takes a moment; the scraper then runs in the background.
+              </p>
+            ) : null}
           </div>
         </div>
       </header>

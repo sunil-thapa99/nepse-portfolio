@@ -59,7 +59,10 @@ export function MeroshareCredentials() {
   const [showPassword, setShowPassword] = useState(false);
 
   const refreshSaved = useCallback(async () => {
-    if (!session) {
+    const {
+      data: { session: s },
+    } = await supabase.auth.getSession();
+    if (!s) {
       setSaved(null);
       setLoadingRow(false);
       return;
@@ -89,12 +92,24 @@ export function MeroshareCredentials() {
     }
     setPassword("");
     setShowPassword(false);
-  }, [session]);
+  }, []);
+
+  const sessionUserId = session?.user?.id;
 
   useEffect(() => {
     if (authLoading) return;
+    if (!sessionUserId) {
+      setSaved(null);
+      setLoadingRow(false);
+      setUsername("");
+      setDpId("");
+      setPassword("");
+      setShowPassword(false);
+      setEditing(true);
+      return;
+    }
     void refreshSaved();
-  }, [authLoading, refreshSaved]);
+  }, [authLoading, sessionUserId, refreshSaved]);
 
   const showForm = !saved || editing;
 

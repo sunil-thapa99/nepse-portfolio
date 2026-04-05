@@ -133,6 +133,8 @@ curl http://localhost:10000/health
 
 **Production frontend:** build the React app with **`VITE_API_BASE_URL`** set to your API URL (no trailing slash), e.g. `https://your-service.onrender.com`, so `Refresh data` calls the right host. See [`web/.env.production.example`](web/.env.production.example).
 
+**Supabase auth URLs (signup confirmation email):** In the [Supabase Dashboard](https://supabase.com/dashboard) → **Authentication** → **URL Configuration**, set **Site URL** to your deployed SPA origin (e.g. `https://your-app.vercel.app`, no trailing path unless you use one). Under **Redirect URLs**, add every origin users may land on after clicking the email link: production SPA, staging/preview URLs, and local dev (`http://localhost:5173`, `http://127.0.0.1:5173`) if you test sign-up locally. The app passes **`emailRedirectTo`** from the browser’s current origin on sign-up ([`web/src/pages/AuthPage.tsx`](web/src/pages/AuthPage.tsx)), so confirmation links redirect to the same host the user registered from; those exact origins must be allow-listed. If **Site URL** stays on localhost, emails will still default there when **`emailRedirectTo`** is not used by older clients—keep **Site URL** aligned with your primary production app.
+
 **Verify CORS after deploy:** replace the origins with yours; the response should include `access-control-allow-origin` matching the `Origin` you send (and status `200` for the preflight):
 
 ```bash
