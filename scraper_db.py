@@ -18,6 +18,28 @@ logger = logging.getLogger(__name__)
 _UPSERT_CHUNK = 500
 
 
+def _dedupe_upsert_rows(rows: List[Dict[str, Any]], *, label: str) -> List[Dict[str, Any]]:
+    """One row per (user_id, line_hash); later rows win. Avoids Postgres ON CONFLICT batch errors."""
+    if not rows:
+        return []
+    by_key: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for r in rows:
+        key = (str(r["user_id"]), str(r["line_hash"]))
+        by_key[key] = r
+    out = list(by_key.values())
+    dropped = len(rows) - len(out)
+    if dropped:
+        logger.warning(
+            "[warn] %s upsert: merged %s duplicate row(s) on (user_id, line_hash) "
+            "(%s → %s row(s)).",
+            label,
+            dropped,
+            len(rows),
+            len(out),
+        )
+    return out
+
+
 def fetch_meroshare_credentials(user_id: str) -> Tuple[str, str, str]:
     """Return username, plain password, dp_id (DP name for login dropdown). Raises on missing row."""
     res = (
@@ -147,6 +169,7 @@ def transactions_records_to_payload(
 
 
 def upsert_transactions(rows: List[Dict[str, Any]]) -> None:
+    rows = _dedupe_upsert_rows(rows, label="transactions")
     n = len(rows)
     logger.info("[info] Transactions upsert: starting (%s row(s))...", n)
     for i in range(0, len(rows), _UPSERT_CHUNK):
@@ -229,6 +252,7 @@ def finalized_purchase_rows_to_payload(
 
 
 def upsert_purchase_sources(rows: List[Dict[str, Any]]) -> None:
+    rows = _dedupe_upsert_rows(rows, label="purchase_sources")
     n = len(rows)
     logger.info("[info] Purchase sources upsert: starting (%s row(s))...", n)
     for i in range(0, len(rows), _UPSERT_CHUNK):
