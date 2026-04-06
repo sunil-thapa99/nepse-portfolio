@@ -54,6 +54,8 @@ def verify_jwt_user_id(jwt: str) -> str:
     uid = data.get("id")
     if not uid:
         raise HTTPException(status_code=401, detail="Invalid token payload")
+    if data.get("email") and not data.get("email_confirmed_at"):
+        raise HTTPException(status_code=403, detail="Email not confirmed")
     return uid
 
 

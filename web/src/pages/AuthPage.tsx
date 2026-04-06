@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getPublicSiteOrigin } from "../lib/siteUrl";
-import { useAuth } from "../auth/AuthContext";
+import { shouldRejectSession, useAuth } from "../auth/AuthContext";
 import { PasswordInput } from "../components/PasswordInput";
 
 type Tab = "register" | "login";
@@ -49,9 +49,12 @@ export default function AuthPage() {
         setError(signErr.message);
         return;
       }
-      if (data.session) {
+      if (data.session?.user?.email_confirmed_at) {
         navigate("/dashboard", { replace: true });
         return;
+      }
+      if (data.session) {
+        await supabase.auth.signOut();
       }
       setTab("login");
       setVerifyEmailModalOpen(true);
@@ -75,6 +78,13 @@ export default function AuthPage() {
         return;
       }
       if (data.session) {
+        if (shouldRejectSession(data.session)) {
+          await supabase.auth.signOut();
+          setError(
+            "Confirm your email before signing in. Check your inbox for the link."
+          );
+          return;
+        }
         navigate("/dashboard", { replace: true });
       }
     } finally {
