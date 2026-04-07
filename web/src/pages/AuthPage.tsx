@@ -2,13 +2,10 @@ import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getPublicSiteOrigin } from "../lib/siteUrl";
-import { shouldRejectSession, useAuth } from "../auth/AuthContext";
+import { useAuth } from "../auth/AuthContext";
 import { PasswordInput } from "../components/PasswordInput";
 
 type Tab = "register" | "login";
-
-const VERIFY_EMAIL_MSG =
-  "Check your email to confirm your account before signing in.";
 
 export default function AuthPage() {
   const { session, loading } = useAuth();
@@ -19,7 +16,6 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [verifyEmailModalOpen, setVerifyEmailModalOpen] = useState(false);
 
   if (loading) {
     return (
@@ -49,15 +45,12 @@ export default function AuthPage() {
         setError(signErr.message);
         return;
       }
-      if (data.session?.user?.email_confirmed_at) {
+      if (data.session) {
         navigate("/dashboard", { replace: true });
         return;
       }
-      if (data.session) {
-        await supabase.auth.signOut();
-      }
       setTab("login");
-      setVerifyEmailModalOpen(true);
+      setError("Please sign in with your new account.");
       navigate("/login", { replace: true });
     } finally {
       setPending(false);
@@ -78,13 +71,6 @@ export default function AuthPage() {
         return;
       }
       if (data.session) {
-        if (shouldRejectSession(data.session)) {
-          await supabase.auth.signOut();
-          setError(
-            "Confirm your email before signing in. Check your inbox for the link."
-          );
-          return;
-        }
         navigate("/dashboard", { replace: true });
       }
     } finally {
@@ -94,38 +80,6 @@ export default function AuthPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-4 py-12">
-      {verifyEmailModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          role="presentation"
-          onClick={() => setVerifyEmailModalOpen(false)}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="verify-email-title"
-            className="w-full max-w-sm rounded-2xl border border-slate-600 bg-surface-raised p-6 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2
-              id="verify-email-title"
-              className="text-lg font-semibold text-slate-100"
-            >
-              Check your email
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              {VERIFY_EMAIL_MSG}
-            </p>
-            <button
-              type="button"
-              className="mt-6 w-full rounded-xl bg-accent py-2.5 text-sm font-semibold text-slate-950 transition hover:opacity-90"
-              onClick={() => setVerifyEmailModalOpen(false)}
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
       <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-surface-raised/80 p-8 shadow-xl">
         <h1 className="text-center text-2xl font-bold tracking-tight text-slate-100">
           NEPSE portfolio
