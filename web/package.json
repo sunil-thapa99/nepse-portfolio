@@ -14,14 +14,14 @@
     "@supabase/supabase-js": "^2.100.1",
     "@tanstack/react-table": "^8.20.5",
     "papaparse": "^5.4.1",
-    "react": "^18.3.1",
+    "react": "^19.2.5",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.13.2",
     "recharts": "^2.15.0"
   },
   "devDependencies": {
     "@types/papaparse": "^5.3.15",
-    "@types/react": "^18.3.12",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
