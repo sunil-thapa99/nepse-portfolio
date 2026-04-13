@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiUrl } from "../lib/apiUrl";
 import {
+  buildScripLtpMap,
   buildPortfolioFromDb,
   dbPurchaseSourcesToParsed,
   type DbPurchaseSourceRow,
+  type DbScripLtpRow,
   type DbTransactionRow,
 } from "../lib/mapDbToPortfolio";
 import type { PortfolioResult, ScripAggregate } from "../lib/types";
@@ -57,6 +59,7 @@ export default function DashboardPage() {
   const { session, loading: authLoading, signOut } = useAuth();
   const [txRows, setTxRows] = useState<DbTransactionRow[]>([]);
   const [purchaseRows, setPurchaseRows] = useState<DbPurchaseSourceRow[]>([]);
+  const [ltpRows, setLtpRows] = useState<DbScripLtpRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scraping, setScraping] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -80,6 +83,7 @@ export default function DashboardPage() {
     if (!s) {
       setTxRows([]);
       setPurchaseRows([]);
+      setLtpRows([]);
       setLoading(false);
       return;
     }
@@ -87,7 +91,7 @@ export default function DashboardPage() {
       setLoading(true);
     }
     setFetchError(null);
-    const [txRes, purRes] = await Promise.all([
+    const [txRes, purRes, ltpRes] = await Promise.all([
       supabase
         .from("transactions")
         .select("*")
@@ -96,14 +100,20 @@ export default function DashboardPage() {
         .from("purchase_sources")
         .select("*")
         .order("transaction_date", { ascending: false }),
+      supabase
+        .from("scrip_ltp")
+        .select("*")
+        .order("scraped_at", { ascending: false }),
     ]);
     const errs: string[] = [];
     if (txRes.error) errs.push(`Transactions: ${txRes.error.message}`);
     if (purRes.error) errs.push(`Purchase sources: ${purRes.error.message}`);
+    if (ltpRes.error) errs.push(`Scrip LTP: ${ltpRes.error.message}`);
     setFetchError(errs.length ? errs.join(" ") : null);
     if (!txRes.error) setTxRows((txRes.data ?? []) as DbTransactionRow[]);
     if (!purRes.error)
       setPurchaseRows((purRes.data ?? []) as DbPurchaseSourceRow[]);
+    if (!ltpRes.error) setLtpRows((ltpRes.data ?? []) as DbScripLtpRow[]);
     setLoading(false);
   }, []);
 
@@ -114,6 +124,7 @@ export default function DashboardPage() {
     if (!sessionUserId) {
       setTxRows([]);
       setPurchaseRows([]);
+      setLtpRows([]);
       setLoading(false);
       return;
     }
@@ -158,6 +169,21 @@ export default function DashboardPage() {
   const holdings = useMemo(
     () => aggregates.filter((a) => a.currentUnits > 0),
     [aggregates]
+  );
+
+  const ltpByScrip = useMemo(() => buildScripLtpMap(ltpRows), [ltpRows]);
+
+  const holdingsWithLtp = useMemo(
+    () =>
+      holdings.map((h) => {
+        const ltp = ltpByScrip.get(h.scrip.toUpperCase()) ?? null;
+        const unrealized =
+          ltp != null && h.waccNPR != null
+            ? (ltp - h.waccNPR) * h.currentUnits
+            : null;
+        return { ...h, ltpNPR: ltp, unrealizedPnLNPR: unrealized };
+      }),
+    [holdings, ltpByScrip]
   );
 
   const partialSold = useMemo(
@@ -477,7 +503,7 @@ export default function DashboardPage() {
                     {portfolio ? (
                       <div aria-labelledby="tab-open-positions heading-open-positions">
                         <HoldingsTable
-                          rows={holdings}
+                          rows={holdingsWithLtp}
                           selectedScrip={selectedScrip}
                           onSelectScrip={setSelectedScrip}
                         />

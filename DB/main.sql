@@ -44,10 +44,24 @@ create table purchase_sources (
   unique (user_id, line_hash)
 );
 
+-- Last transaction price per scrip (latest row per user+scrip)
+create table scrip_ltp (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  scrip text not null,
+  ltp numeric not null,
+  scraped_at timestamptz not null,
+  -- sha256 hex of user_id|scrip (see scraper_db.py)
+  line_hash text not null,
+  created_at timestamptz default now(),
+  unique (user_id, line_hash)
+);
+
 -- Enable Row Level Security on all tables
 alter table meroshare_credentials enable row level security;
 alter table transactions enable row level security;
 alter table purchase_sources enable row level security;
+alter table scrip_ltp enable row level security;
 
 -- Policies: users only see their own data
 create policy "users manage own credentials"
@@ -60,4 +74,8 @@ create policy "users see own transactions"
 
 create policy "users see own purchase sources"
   on purchase_sources for all
+  using (auth.uid() = user_id);
+
+create policy "users see own scrip ltp"
+  on scrip_ltp for all
   using (auth.uid() = user_id);

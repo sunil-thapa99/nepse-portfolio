@@ -262,3 +262,45 @@ def upsert_purchase_sources(rows: List[Dict[str, Any]]) -> None:
             on_conflict="user_id,line_hash",
         ).execute()
     logger.info("[info] Purchase sources upsert: finished (%s row(s)).", n)
+
+
+def scrip_ltp_line_hash(user_id: str, scrip: str) -> str:
+    """Stable SHA-256 hex; preimage user_id|scrip_upper."""
+    s = "|".join([user_id, scrip.strip().upper()])
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def scrip_ltp_rows_to_payload(
+    user_id: str,
+    ltp_rows: List[Dict[str, Any]],
+    scraped_at_iso: str,
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for row in ltp_rows:
+        scrip = str(row.get("Scrip") or "").strip()
+        ltp = _parse_num_for_db(row.get("LTP"))
+        if not scrip or ltp is None:
+            continue
+        out.append(
+            {
+                "user_id": user_id,
+                "scrip": scrip,
+                "ltp": ltp,
+                "scraped_at": scraped_at_iso,
+                "line_hash": scrip_ltp_line_hash(user_id, scrip),
+            }
+        )
+    return out
+
+
+def upsert_scrip_ltp(rows: List[Dict[str, Any]]) -> None:
+    rows = _dedupe_upsert_rows(rows, label="scrip_ltp")
+    n = len(rows)
+    logger.info("[info] Scrip LTP upsert: starting (%s row(s))...", n)
+    for i in range(0, len(rows), _UPSERT_CHUNK):
+        chunk = rows[i : i + _UPSERT_CHUNK]
+        supabase.table("scrip_ltp").upsert(
+            chunk,
+            on_conflict="user_id,line_hash",
+        ).execute()
+    logger.info("[info] Scrip LTP upsert: finished (%s row(s)).", n)

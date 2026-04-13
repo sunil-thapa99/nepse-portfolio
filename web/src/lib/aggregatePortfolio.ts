@@ -22,6 +22,7 @@ function emptyAggregate(scrip: string): ScripAggregate {
     creditsByCategory: emptyCredits(),
     waccNPR: null,
     totalInvestedNPR: null,
+    ltpNPR: null,
     realizedPnLNPR: null,
     unrealizedPnLNPR: null,
   };

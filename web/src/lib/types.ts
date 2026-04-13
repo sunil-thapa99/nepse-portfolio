@@ -51,8 +51,10 @@ export interface ScripAggregate {
   waccNPR: number | null;
   /** NPR cost basis for remaining units when purchase CSV is loaded. */
   totalInvestedNPR: number | null;
+  /** Last transaction price from My Portfolio LTP table. */
+  ltpNPR: number | null;
   realizedPnLNPR: null;
-  unrealizedPnLNPR: null;
+  unrealizedPnLNPR: number | null;
 }
 
 export interface PortfolioResult {

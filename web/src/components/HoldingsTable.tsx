@@ -89,6 +89,35 @@ export function HoldingsTable({
         },
       },
       {
+        id: "ltp",
+        header: "LTP",
+        accessorFn: (row) => row.ltpNPR,
+        cell: (info) => {
+          const v = info.getValue() as number | null;
+          if (v == null) return <PlaceholderMoney />;
+          return (
+            <span className="font-mono tabular-nums text-slate-200">
+              {formatNpr(v)}
+            </span>
+          );
+        },
+      },
+      {
+        id: "gains",
+        header: "Gains",
+        accessorFn: (row) => row.unrealizedPnLNPR,
+        cell: (info) => {
+          const v = info.getValue() as number | null;
+          if (v == null) return <PlaceholderMoney />;
+          const tone = v >= 0 ? "text-emerald-300" : "text-rose-300";
+          return (
+            <span className={`font-mono tabular-nums ${tone}`}>
+              {formatNpr(v)}
+            </span>
+          );
+        },
+      },
+      {
         accessorKey: "lastActivityDate",
         header: "Last activity",
         cell: (info) => (

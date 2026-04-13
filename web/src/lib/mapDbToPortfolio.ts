@@ -41,6 +41,16 @@ export type DbPurchaseSourceRow = {
   created_at?: string;
 };
 
+export type DbScripLtpRow = {
+  id: string;
+  user_id: string;
+  scrip: string;
+  ltp: number | string;
+  scraped_at?: string;
+  line_hash?: string;
+  created_at?: string;
+};
+
 function num(v: number | string | null | undefined): number {
   if (v == null) return 0;
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
@@ -127,4 +137,16 @@ export function buildPortfolioFromDb(
     applyPurchaseCostsToAggregates(result.byScrip, result.transactions, lines);
   }
   return result;
+}
+
+export function buildScripLtpMap(rows: DbScripLtpRow[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const row of rows) {
+    const scrip = (row.scrip ?? "").trim().toUpperCase();
+    if (!scrip) continue;
+    const ltp = num(row.ltp);
+    if (!Number.isFinite(ltp) || ltp <= 0) continue;
+    out.set(scrip, ltp);
+  }
+  return out;
 }

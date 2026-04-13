@@ -4,6 +4,7 @@ import datetime as dt
 import io
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -20,7 +21,9 @@ from scraper_db import (
     finalized_purchase_rows_to_payload,
     list_meroshare_credential_user_ids,
     transactions_records_to_payload,
+    scrip_ltp_rows_to_payload,
     upsert_purchase_sources,
+    upsert_scrip_ltp,
     upsert_transactions,
 )
 
@@ -137,6 +140,9 @@ async def login_meroshare(
                 await asyncio.sleep(3)
         elif after_login == "purchase":
             await page.goto(f"{MEROSHARE_URL}#/purchase", wait_until="domcontentloaded")
+            await asyncio.sleep(3)
+        elif after_login == "portfolio":
+            await page.goto(f"{MEROSHARE_URL}#/portfolio", wait_until="domcontentloaded")
             await asyncio.sleep(3)
         return True
 
@@ -432,6 +438,72 @@ async def scrape_purchase_sources(
     return all_rows
 
 
+def _portfolio_header_key(name: object) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(name).strip().lower())
+
+
+def _portfolio_pick_col(df: pd.DataFrame, *keys: str) -> Optional[str]:
+    idx = {_portfolio_header_key(c): c for c in df.columns}
+    for key in keys:
+        if key in idx:
+            return idx[key]
+    return None
+
+
+async def scrape_portfolio_ltp(
+    page: Page,
+    scrips: List[str],
+) -> List[Dict[str, str]]:
+    """Scrape portfolio table and return latest LTP for requested scrips."""
+    out_by_scrip: Dict[str, Dict[str, str]] = {}
+    want = {str(s).strip().upper() for s in scrips if str(s).strip()}
+    if not want:
+        return []
+
+    await page.goto(f"{MEROSHARE_URL}#/portfolio", wait_until="domcontentloaded")
+    await asyncio.sleep(3)
+
+    tables = await _find_purchase_result_tables(page, timeout=20.0)
+    dfs: List[pd.DataFrame] = []
+    for table in tables:
+        html = await table.evaluate("el => el.outerHTML") or ""
+        if not html.strip():
+            continue
+        try:
+            parsed = pd.read_html(io.StringIO(html))
+        except (ValueError, ImportError):
+            continue
+        for df in parsed:
+            df.columns = df.columns.map(lambda c: str(c).strip())
+            dfs.append(df)
+
+    for df in dfs:
+        scrip_col = _portfolio_pick_col(df, "scrip")
+        ltp_col = _portfolio_pick_col(
+            df,
+            "lasttransactionpriceltp",
+            "lasttransactionprice",
+            "ltp",
+        )
+        if scrip_col is None or ltp_col is None:
+            continue
+        for _, row in df.iterrows():
+            if "total" in str(row.values).lower():
+                continue
+            scrip = str(row.get(scrip_col, "")).strip()
+            if not scrip:
+                continue
+            scrip_u = scrip.upper()
+            if scrip_u not in want:
+                continue
+            ltp = _purchase_parse_float(row.get(ltp_col))
+            if ltp is None:
+                continue
+            out_by_scrip[scrip_u] = {"Scrip": scrip, "LTP": str(ltp)}
+
+    return list(out_by_scrip.values())
+
+
 def _purchase_col_index(df: pd.DataFrame) -> Dict[str, str]:
     """Lowercase stripped header -> original column name."""
     return {str(c).strip().lower(): c for c in df.columns}
@@ -705,6 +777,8 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
 
                 purchase_rows = None
                 ps_payload = None
+                ltp_rows = None
+                ltp_payload = None
                 open_syms = open_scrips_from_transaction_records(records)
                 if not open_syms:
                     logger.warning(
@@ -743,6 +817,18 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                     else:
                         logger.warning("[warn] No purchase source rows collected")
 
+                    logger.info(
+                        "[info] Scraping portfolio LTP for %s open scrip(s)...",
+                        len(open_syms),
+                    )
+                    ltp_rows = await scrape_portfolio_ltp(page, open_syms)
+                    logger.info(
+                        "[info] Portfolio LTP: scraped %s row(s) from MeroShare",
+                        len(ltp_rows),
+                    )
+                    ltp_payload = scrip_ltp_rows_to_payload(uid, ltp_rows, scraped_at)
+                    upsert_scrip_ltp(ltp_payload)
+
                 summary = (
                     f"[info] Scrape summary: transactions {len(records)} scraped → "
                     f"{len(tx_payload)} upserted"
@@ -750,7 +836,12 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                 if open_syms:
                     pr = len(purchase_rows) if purchase_rows is not None else 0
                     pu = len(ps_payload) if ps_payload is not None else 0
-                    summary += f"; purchase {pr} scraped → {pu} upserted"
+                    lr = len(ltp_rows) if ltp_rows is not None else 0
+                    lu = len(ltp_payload) if ltp_payload is not None else 0
+                    summary += (
+                        f"; purchase {pr} scraped → {pu} upserted"
+                        f"; ltp {lr} scraped → {lu} upserted"
+                    )
                 logger.info("%s", summary)
             finally:
                 await browser.close()
