@@ -64,4 +64,25 @@ describe("fifoCostForOpenPosition", () => {
     expect(waccNPR).toBe(0);
     expect(totalInvestedNPR).toBe(0);
   });
+
+  it("zero cost for DREP lots", () => {
+    const lines: ParsedPurchaseLine[] = [
+      {
+        scrip: "ABC",
+        transactionDate: "2024-01-01",
+        quantity: 10,
+        rate: 100,
+        purchaseSource: "DREP",
+        isBonus: false,
+      },
+    ];
+    const txs: ParsedTransaction[] = [tx(1, 10, 0)];
+    const { waccNPR, totalInvestedNPR } = fifoCostForOpenPosition(
+      txs,
+      lines,
+      10
+    );
+    expect(waccNPR).toBe(0);
+    expect(totalInvestedNPR).toBe(0);
+  });
 });

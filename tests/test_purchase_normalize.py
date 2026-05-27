@@ -164,6 +164,29 @@ class TestPurchaseFillDates(unittest.TestCase):
         m._purchase_fill_dates_from_transactions(purchase, txs)
         self.assertEqual(purchase[0]["Transaction Date"], "2020-01-01")
 
+    def test_drep_match_sets_zero_rate(self) -> None:
+        purchase = [
+            {
+                "Scrip": "NIBLSF",
+                "Transaction Date": "",
+                "Quantity": "25",
+                "Rate": "10",
+                "Purchase Source": "ON_MARKET",
+            }
+        ]
+        txs = [
+            {
+                "Scrip": "NIBLSF",
+                "Transaction Date": "2026-01-15",
+                "Credit Quantity": "25",
+                "History Description": "DREP CREDIT",
+            }
+        ]
+        m._purchase_fill_dates_from_transactions(purchase, txs)
+        self.assertEqual(purchase[0]["Transaction Date"], "2026-01-15")
+        self.assertEqual(purchase[0]["Rate"], "0")
+        self.assertEqual(purchase[0]["Purchase Source"], "DREP")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,5 @@
 import type { ParsedPurchaseLine, ParsedTransaction, ScripAggregate } from "./types";
+import { isZeroCostPurchaseSource } from "./parsePurchaseCsv";
 
 export interface CostBasisResult {
   waccNPR: number | null;
@@ -27,7 +28,7 @@ export function fifoCostForOpenPosition(
   type Lot = { remaining: number; unitCost: number };
   const lots: Lot[] = sorted.map((l) => ({
     remaining: l.quantity,
-    unitCost: l.isBonus ? 0 : l.rate,
+    unitCost: l.isBonus || isZeroCostPurchaseSource(l.purchaseSource) ? 0 : l.rate,
   }));
 
   for (const tx of txsOldestFirst) {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isBonusPurchaseSource, parsePurchaseCsv } from "./parsePurchaseCsv";
+import {
+  isBonusPurchaseSource,
+  isZeroCostPurchaseSource,
+  parsePurchaseCsv,
+} from "./parsePurchaseCsv";
 
 describe("parsePurchaseCsv", () => {
   it("parses normalized purchase export", () => {
@@ -27,5 +31,13 @@ describe("isBonusPurchaseSource", () => {
   it("normalizes hyphens", () => {
     expect(isBonusPurchaseSource("BONUS")).toBe(true);
     expect(isBonusPurchaseSource("ON-MARKET")).toBe(false);
+  });
+});
+
+describe("isZeroCostPurchaseSource", () => {
+  it("treats bonus and DREP as zero-cost sources", () => {
+    expect(isZeroCostPurchaseSource("BONUS")).toBe(true);
+    expect(isZeroCostPurchaseSource("DREP")).toBe(true);
+    expect(isZeroCostPurchaseSource("ON-MARKET")).toBe(false);
   });
 });

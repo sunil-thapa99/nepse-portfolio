@@ -17,9 +17,17 @@ function parseRate(s: string | undefined): number {
   return Number.isFinite(n) ? n : NaN;
 }
 
-/** MeroShare / scraper uses BONUS, ON_MARKET, etc. */
+function canonicalPurchaseSource(raw: string): string {
+  return raw.trim().toUpperCase().replace(/-/g, "_");
+}
+
+/** MeroShare / scraper uses BONUS, ON_MARKET, DREP, etc. */
 export function isBonusPurchaseSource(raw: string): boolean {
-  return raw.trim().toUpperCase().replace(/-/g, "_") === "BONUS";
+  return canonicalPurchaseSource(raw) === "BONUS";
+}
+
+export function isZeroCostPurchaseSource(raw: string): boolean {
+  return ["BONUS", "DREP"].includes(canonicalPurchaseSource(raw));
 }
 
 export function parsePurchaseCsv(text: string): ParsedPurchaseLine[] {
