@@ -16,126 +16,190 @@ Requires-Dist: uvicorn[standard]>=0.32
 
 # nepse-portfolio
 
-Stack: **React** (dashboard), **FastAPI** (API + scrape trigger), **Selenium** (MeroShare), **Supabase** (auth + Postgres), optional **GitHub Actions** (scheduled scrape).
+A portfolio dashboard for NEPSE holdings. The app signs users in with Supabase, stores their MeroShare credentials securely, scrapes MeroShare transaction data with Playwright, and shows holdings, cost basis, sold positions, and latest traded price data in a React dashboard.
 
-The scraper logs into [MeroShare](https://meroshare.cdsc.com.np/), exports **My Transaction History** to a temp CSV, parses it, then scrapes **My Purchase Source** HTML for open positions. It **upserts** **`transactions`** and **`purchase_sources`** in Supabase (see [`DB/main.sql`](DB/main.sql)); there is no user-facing CSV export path.
+## Stack
 
----
+- **Frontend:** React, Vite, TypeScript, Tailwind CSS
+- **Auth and database:** Supabase Auth + Supabase Postgres
+- **API:** FastAPI
+- **Scraper:** Python + Playwright
+- **Production API hosting:** Docker, commonly deployed on Render
+- **Scheduled scraping:** GitHub Actions
 
-## Architecture and data flow
+## Architecture
 
-| Piece | Role |
-| ----- | ---- |
-| **React** ([`web/`](web/)) | Reads **`transactions`** and **`purchase_sources`** with the Supabase client (RLS → signed-in user). Calls FastAPI only to save credentials and to start a scrape. |
-| **FastAPI** ([`api_app.py`](api_app.py)) | Verifies JWTs against Supabase Auth, encrypts passwords to **`meroshare_credentials`**, queues **`run_scraper()`** on **POST `/refresh`** (non-blocking). |
-| **Scraper** ([`main.py`](main.py)) | **`run_scraper(user_id, …)`** loads credentials from Supabase, runs headless Chrome, upserts tables. Used by the API (in-process background task) and by **CLI / GitHub Actions** (`python main.py --user-id …` or **`--all-credential-users`**). |
-| **GitHub Actions** ([`.github/workflows/meroshare-scrape.yml`](.github/workflows/meroshare-scrape.yml)) | Cron (or manual) run of **`python main.py --all-credential-users`** (every row in **`meroshare_credentials`**). Does **not** call FastAPI. |
+```text
+React dashboard
+  -> Supabase Auth
+  -> Supabase Postgres for portfolio reads
+  -> FastAPI for credential save and manual refresh
 
-**Frontend never talks to GitHub Actions.** Manual refresh goes **React → FastAPI → `run_scraper` → Supabase**. Scheduled refresh goes **Actions → `main.py` → Supabase**.
+FastAPI
+  -> verifies Supabase JWT
+  -> encrypts MeroShare password
+  -> starts Playwright scraper in the background
 
----
-
-## End-to-end dashboard flow
-
-1. User signs in with **Supabase Auth**; the app loads portfolio rows from Supabase.
-2. User saves MeroShare username/password/DP via **POST `/api/meroshare/credentials`** (Bearer JWT). The API stores an encrypted password in **`meroshare_credentials`**.
-3. User clicks **Refresh data** → **POST `/refresh`** (Bearer JWT). The API checks that credentials exist, enqueues **`run_scraper`** in a **background task**, and returns immediately **`{"status": "scraper started"}`**.
-4. The UI shows a short loading state, then a success message. The scrape continues on the server; the app may refetch from Supabase after a delay. New data appears once the scrape finishes writing to Supabase.
-
----
-
-## FastAPI endpoints
-
-| Method | Path | Purpose |
-| ------ | ---- | ------- |
-| `GET` | `/health` | Load balancer / platform health (`{"status": "ok"}`). |
-| `POST` | `/api/meroshare/credentials` | Body: `username`, `password`, `dp_id`. Requires `Authorization: Bearer <access_token>`. |
-| `POST` | `/refresh` | Starts scrape for the JWT user in the background. Requires saved credentials. Response: `{"status": "scraper started"}`. |
-
-**CORS:** [`CORS_ALLOW_ORIGINS`](#configuration) (comma-separated). Defaults to local Vite URLs.
-
----
-
-## Scraper CLI and scheduled runs
-
-- **Shared logic:** **`run_scraper()`** in [`main.py`](main.py). **`main()`** is the CLI entry: **`--user-id`** or **`--all-credential-users`**; **`--no-headless`** optional.
-- **GitHub Actions:** set secrets `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ENCRYPTION_KEY`. Workflow runs `python main.py --all-credential-users` on Ubuntu with Chrome/Chromium (see workflow file).
-
-**Prerequisites for any scrape:**
-
-1. SQL: fresh [`DB/main.sql`](DB/main.sql), or run [`DB/migrations/002_scraper_upsert.sql`](DB/migrations/002_scraper_upsert.sql) then [`DB/migrations/003_line_hash_natural_keys.sql`](DB/migrations/003_line_hash_natural_keys.sql) on existing DBs (`line_hash` upsert key; see comments in `main.sql`).
-2. `.env` (or host env) with `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, **`ENCRYPTION_KEY`**.
-3. A **`meroshare_credentials`** row for that user (saved from the dashboard).
-
-```bash
-uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
-uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless   # debug
-uv run python main.py --all-credential-users   # every user with meroshare_credentials
+Scraper
+  -> logs into MeroShare
+  -> scrapes transaction history, purchase source, and LTP data
+  -> upserts rows into Supabase
 ```
 
-If MeroShare changes the purchase UI, adjust selectors in `main.py` (e.g. `input[name="script"]`, Search button, tables).
+The frontend does not talk to GitHub Actions. Manual refresh goes through the FastAPI API. Scheduled refresh runs directly from GitHub Actions into Supabase.
 
----
+## Data Flow
 
-## Configuration
+1. A user signs in with Supabase Auth.
+2. The dashboard reads the user's `transactions`, `purchase_sources`, and `scrip_ltp` rows from Supabase.
+3. The user saves MeroShare credentials through `POST /api/meroshare/credentials`.
+4. The API verifies the Supabase access token and stores the password encrypted in `meroshare_credentials`.
+5. The user clicks **Refresh data**, which calls `POST /refresh`.
+6. The API queues `run_scraper()` in the background.
+7. The scraper logs into MeroShare and upserts fresh data into Supabase.
+8. The dashboard reloads from Supabase and recalculates portfolio summaries in the browser.
+
+## Main Files
+
+- `web/` - React dashboard.
+- `web/src/pages/DashboardPage.tsx` - main portfolio page and Supabase data loading.
+- `web/src/lib/aggregatePortfolio.ts` - portfolio aggregation logic.
+- `web/src/lib/applyPurchaseCosts.ts` - purchase source cost basis logic.
+- `api_app.py` - FastAPI app for credentials and refresh.
+- `main.py` - Playwright MeroShare scraper and CLI entrypoint.
+- `scraper_db.py` - Supabase row mapping and upsert helpers.
+- `DB/main.sql` - Supabase schema and RLS policies.
+- `Dockerfile` - production API image with Chromium.
+- `render.yaml` - optional Render Blueprint for the API service.
+- `.github/workflows/meroshare-scrape.yml` - scheduled scraper workflow.
+
+## Supabase Schema
+
+The main tables are:
+
+- `meroshare_credentials` - one encrypted MeroShare credential row per user.
+- `transactions` - scraped MeroShare transaction history.
+- `purchase_sources` - scraped purchase source rows used for cost basis.
+- `scrip_ltp` - latest traded price per scrip.
+
+All tables use Supabase Row Level Security so signed-in users only access their own data. The Python API and scraper use `SUPABASE_SERVICE_KEY` for trusted server-side writes.
+
+## Environment Variables
+
+Copy the example file:
 
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description |
-| -------- | ----------- |
-| `SUPABASE_URL` | Project URL (Python, scraper, server-side Supabase client). |
-| `SUPABASE_SERVICE_KEY` | Service role key (keep secret; used by API and scraper). |
-| `ENCRYPTION_KEY` | Fernet key for passwords at rest in `meroshare_credentials`. Generate: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
-| `VITE_SUPABASE_URL` | Same project URL for the browser (Vite only exposes `VITE_*`). |
-| `VITE_SUPABASE_ANON_KEY` | Anon key for the React app. |
-| `VITE_API_BASE_URL` | Optional. Full API origin with scheme, no trailing slash, when the API is not same-origin (production). Omit locally: Vite proxies `/api` and `/refresh`. |
-| `CORS_ALLOW_ORIGINS` | Comma-separated origins allowed to call the API. **Unset or blank** falls back to built-in defaults in `api_app.py` (local Vite + production dashboard origin). If you set this on Render, use the exact SPA origin(s) or preflight fails. **`www`** vs apex are different origins. |
-| `CHROME_BIN` | Optional. Chromium/Chrome binary path (set automatically in [`Dockerfile`](Dockerfile)). |
-| `CHROMEDRIVER_PATH` | Optional. Path to `chromedriver` matching that browser (set in Docker image). |
+Required for Python API and scraper:
 
----
+```bash
+SUPABASE_URL=
+SUPABASE_SERVICE_KEY=
+ENCRYPTION_KEY=
+```
 
-## Local development
+Required for the React app:
 
-**Requirements:** Python 3.10+, [uv](https://docs.astral.sh/uv/) (recommended), [Google Chrome](https://www.google.com/chrome/) for local Selenium (Selenium 4 usually resolves ChromeDriver).
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
 
-Use a venv named `env/` and point uv at it (see [uv docs](https://docs.astral.sh/uv/)):
+Required in production when the API is hosted separately from the frontend:
+
+```bash
+VITE_API_BASE_URL=https://your-api.example.com
+CORS_ALLOW_ORIGINS=https://your-frontend.example.com
+```
+
+Generate an encryption key with:
+
+```bash
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+## Local Development
+
+Install Python dependencies:
 
 ```bash
 python -m venv env
-export UV_PROJECT_ENVIRONMENT=env   # Windows (cmd): set UV_PROJECT_ENVIRONMENT=env
+export UV_PROJECT_ENVIRONMENT=env
 uv sync
 ```
 
-`uv sync` reads [`pyproject.toml`](pyproject.toml) and [`uv.lock`](uv.lock); commit `uv.lock` for reproducible installs. Optional: `source env/bin/activate` or `uv sync --active`.
-
-**Terminal 1 — API** (repo root, `.env` present):
+Run the API from the repo root:
 
 ```bash
 uv run uvicorn api_app:app --reload --port 8000
 ```
 
-**Terminal 2 — frontend:**
+Run the frontend:
 
 ```bash
-cd web && npm install && npm run dev
+cd web
+npm install
+npm run dev
 ```
 
-Vite proxies **`/api`** and **`/refresh`** to `http://127.0.0.1:8000`. Open the printed URL (e.g. `http://localhost:5173`).
+Vite proxies `/api` and `/refresh` to `http://127.0.0.1:8000` in local development.
 
-**Portfolio math:** **WACC** / **Invested** use a weighted average from purchase **detail** rows when present (BONUS lots as zero NPR in the numerator); otherwise the MeroShare **summary** row. Stock detail adds **Rate (NPR)** by matching purchase lines to buys on date and quantity.
+## Scraper CLI
 
----
+Run a scrape for one user:
 
-## Production API (Docker / Render)
+```bash
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000
+```
 
-The **[`Dockerfile`](Dockerfile)** installs **Chromium** + **chromium-driver**, installs the Python package, and runs:
+Run for every user with saved MeroShare credentials:
 
-`uvicorn api_app:app --host 0.0.0.0 --port $PORT`
+```bash
+uv run python main.py --all-credential-users
+```
 
-**Local smoke test:**
+Run with a visible browser for debugging:
+
+```bash
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless
+```
+
+The scraper requires `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ENCRYPTION_KEY`.
+
+## API Endpoints
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Health check for hosts and load balancers. |
+| `POST` | `/api/meroshare/credentials` | Saves encrypted MeroShare credentials for the signed-in user. |
+| `POST` | `/refresh` | Starts a background scrape for the signed-in user. |
+
+Both POST endpoints require:
+
+```text
+Authorization: Bearer <supabase_access_token>
+```
+
+## When to Use Render
+
+Render is useful when you want the FastAPI backend available in production. The React app can be deployed as a static site, but it still needs a server-side API for credential storage and manual refresh.
+
+Use Render, or another Docker-capable backend host, when you need:
+
+- A public backend for `POST /api/meroshare/credentials` and `POST /refresh`.
+- A safe place to keep `SUPABASE_SERVICE_KEY` and `ENCRYPTION_KEY`.
+- A Linux runtime with Chromium for Playwright scraping.
+- Manual refresh from the dashboard.
+
+You may not need Render if you only run scrapes locally or through GitHub Actions. GitHub Actions can update Supabase on a schedule, but it does not provide an always-on API endpoint for the dashboard.
+
+To confirm the deployed frontend is using Render, check `VITE_API_BASE_URL`. If it points to an `https://...onrender.com` URL, the dashboard is calling the Render API. You can also open browser DevTools and inspect the `POST /refresh` request URL.
+
+## Deploying the API
+
+The API is packaged with Docker:
 
 ```bash
 docker build -t nepse-api .
@@ -143,34 +207,74 @@ docker run --rm -p 10000:10000 -e PORT=10000 --env-file .env nepse-api
 curl http://localhost:10000/health
 ```
 
-**Render (Docker Web Service):** connect the repo, choose **Docker**, use **≥ 2 GB RAM** if possible, set the env vars above, health check path **`/health`**. Render provides **`PORT`**. Optional: use root [`render.yaml`](render.yaml) as a Blueprint so `CORS_ALLOW_ORIGINS` and secrets are defined up front (`sync: false` → set values in the Render dashboard).
+For Render:
 
-**CORS on Render:** if **`CORS_ALLOW_ORIGINS`** is missing or **empty** (common with a Blueprint key left blank), the API uses the defaults in [`api_app.py`](api_app.py) (`_DEFAULT_CORS`). To allow extra origins (e.g. Vercel preview URLs), set **`CORS_ALLOW_ORIGINS`** to a comma-separated list. Do not leave the variable defined with an empty value unless you intend to rely on that fallback (after redeploy with the latest `api_app.py`).
+1. Create a Docker Web Service from this repository.
+2. Use `Dockerfile` at the repo root.
+3. Set the health check path to `/health`.
+4. Set `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `ENCRYPTION_KEY`, and `CORS_ALLOW_ORIGINS`.
+5. Set the frontend's `VITE_API_BASE_URL` to the Render service URL.
 
-**Production frontend:** build the React app with **`VITE_API_BASE_URL`** set to your API URL (no trailing slash), e.g. `https://your-service.onrender.com`, so `Refresh data` calls the right host. See [`web/.env.production.example`](web/.env.production.example).
+The included `render.yaml` can be used as a Render Blueprint.
 
-**Verify CORS after deploy:** replace the origins with yours; the response should include `access-control-allow-origin` matching the `Origin` you send (and status `200` for the preflight):
+## Deploying the Frontend
 
-```bash
-curl -sS -o /dev/null -w "health %{http_code}\n" "https://YOUR-API.onrender.com/health"
-curl -sS -D - -o /dev/null -X OPTIONS "https://YOUR-API.onrender.com/refresh" \
-  -H "Origin: https://YOUR-SPA.example" \
-  -H "Access-Control-Request-Method: POST" \
-  -H "Access-Control-Request-Headers: authorization"
-```
-
-Then use the dashboard → **Refresh data** and confirm in DevTools **Network** that `POST /refresh` is **200** with `{"status":"scraper started"}` and no CORS errors in the **Console**.
-
-You can run **only** GitHub Actions for scrapes and host a minimal API without Chromium—but then **Refresh data** on that host will not run a real browser unless the API image includes Chrome/Chromium.
-
----
-
-## Tests and frontend build
+The frontend is a normal Vite static app:
 
 ```bash
-cd web && npm run build && npm test
+cd web
+npm install
+npm run build
 ```
+
+For a static host such as Vercel, set:
+
+```bash
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_API_BASE_URL=https://your-api.onrender.com
+VITE_SITE_URL=https://your-frontend.example.com
+```
+
+Also configure Supabase Auth URL settings:
+
+- **Site URL:** your production frontend origin.
+- **Redirect URLs:** production frontend, preview URLs if needed, and local dev URLs such as `http://localhost:5173`.
+
+## Scheduled Scraping
+
+`.github/workflows/meroshare-scrape.yml` runs:
+
+```bash
+python main.py --all-credential-users
+```
+
+The workflow needs these GitHub Actions secrets:
+
+```bash
+SUPABASE_URL
+SUPABASE_SERVICE_KEY
+ENCRYPTION_KEY
+```
+
+This is separate from the FastAPI API. It is useful for automatic refreshes even when no user clicks **Refresh data** in the dashboard.
+
+## Tests
+
+Run frontend typecheck, build, and unit tests:
+
+```bash
+cd web
+npm run build
+npm test
+```
+
+Run Python tests:
 
 ```bash
 uv run python -m unittest discover -s tests -v
 ```
+
+## Portfolio Math
+
+The dashboard calculates holdings from transaction history and enriches them with purchase source data when available. Cost basis and WACC use detailed purchase rows, with bonus lots treated as zero-cost units. Latest traded price data is used to estimate unrealized profit or loss for open positions.

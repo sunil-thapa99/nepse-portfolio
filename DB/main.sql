@@ -57,11 +57,30 @@ create table scrip_ltp (
   unique (user_id, line_hash)
 );
 
+-- Realtime scraper progress jobs
+create table scrape_jobs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  status text not null,
+  progress integer not null default 0 check (progress >= 0 and progress <= 100),
+  message text not null,
+  completed boolean not null default false,
+  failed boolean not null default false,
+  error_message text,
+  started_at timestamptz not null,
+  completed_at timestamptz,
+  created_at timestamptz default now()
+);
+
+create index scrape_jobs_user_id_created_at_idx
+  on scrape_jobs (user_id, created_at desc);
+
 -- Enable Row Level Security on all tables
 alter table meroshare_credentials enable row level security;
 alter table transactions enable row level security;
 alter table purchase_sources enable row level security;
 alter table scrip_ltp enable row level security;
+alter table scrape_jobs enable row level security;
 
 -- Policies: users only see their own data
 create policy "users manage own credentials"
@@ -78,4 +97,8 @@ create policy "users see own purchase sources"
 
 create policy "users see own scrip ltp"
   on scrip_ltp for all
+  using (auth.uid() = user_id);
+
+create policy "users see own scrape jobs"
+  on scrape_jobs for select
   using (auth.uid() = user_id);

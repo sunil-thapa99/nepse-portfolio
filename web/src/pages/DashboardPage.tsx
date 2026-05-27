@@ -15,7 +15,10 @@ import { SoldSections } from "../components/SoldSections";
 import { StockDetail } from "../components/StockDetail";
 import { SummaryCards } from "../components/SummaryCards";
 import { MeroshareCredentials } from "../components/MeroshareCredentials";
+import { ScrapeProgressCard } from "../components/ScrapeProgressCard";
 import { useAuth } from "../auth/AuthContext";
+import { useScrapeJobRealtime } from "../hooks/useScrapeJobRealtime";
+import type { RefreshResponse } from "../lib/scrapeJobs";
 
 function matchesFilter(scrip: string, q: string): boolean {
   if (!q.trim()) return true;
@@ -45,6 +48,11 @@ function formatNum(n: number | string | null | undefined): string {
   return String(n);
 }
 
+function formatLastUpdated(date: Date | null): string {
+  if (!date) return "Not loaded yet";
+  return date.toLocaleString();
+}
+
 function Spinner({ className = "" }: { className?: string }) {
   return (
     <span
@@ -64,10 +72,12 @@ export default function DashboardPage() {
   const [scraping, setScraping] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
-  const [scrapeStartedMessage, setScrapeStartedMessage] = useState<string | null>(
+  const [activeScrapeJobId, setActiveScrapeJobId] = useState<string | null>(null);
+  const [dismissedScrapeJobId, setDismissedScrapeJobId] = useState<string | null>(
     null
   );
-  const scrapeReloadTimerRef = useRef<number | null>(null);
+  const completedReloadJobRef = useRef<string | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const [filter, setFilter] = useState("");
   const [rawDataView, setRawDataView] = useState<"positions" | "transactions">(
     "positions"
@@ -114,10 +124,20 @@ export default function DashboardPage() {
     if (!purRes.error)
       setPurchaseRows((purRes.data ?? []) as DbPurchaseSourceRow[]);
     if (!ltpRes.error) setLtpRows((ltpRes.data ?? []) as DbScripLtpRow[]);
+    if (errs.length === 0) setLastUpdatedAt(new Date());
     setLoading(false);
   }, []);
 
   const sessionUserId = session?.user?.id;
+  const { job: activeScrapeJob, subscriptionError } =
+    useScrapeJobRealtime(activeScrapeJobId);
+  const scrapeJobIsTerminal = Boolean(
+    activeScrapeJob?.completed || activeScrapeJob?.failed
+  );
+  const scrapeInProgress = scraping || Boolean(activeScrapeJobId && !scrapeJobIsTerminal);
+  const showScrapeProgress = Boolean(
+    activeScrapeJobId && dismissedScrapeJobId !== activeScrapeJobId
+  );
 
   useEffect(() => {
     if (authLoading) return;
@@ -132,13 +152,11 @@ export default function DashboardPage() {
   }, [authLoading, sessionUserId, loadData]);
 
   useEffect(() => {
-    return () => {
-      if (scrapeReloadTimerRef.current != null) {
-        window.clearTimeout(scrapeReloadTimerRef.current);
-        scrapeReloadTimerRef.current = null;
-      }
-    };
-  }, []);
+    if (!activeScrapeJob?.completed) return;
+    if (completedReloadJobRef.current === activeScrapeJob.id) return;
+    completedReloadJobRef.current = activeScrapeJob.id;
+    void loadData({ silent: true });
+  }, [activeScrapeJob, loadData]);
 
   const portfolioBuild = useMemo((): {
     portfolio: PortfolioResult | null;
@@ -235,6 +253,11 @@ export default function DashboardPage() {
     };
   }, [portfolio, ltpByScrip]);
 
+  const lastUpdatedLabel = useMemo(
+    () => formatLastUpdated(lastUpdatedAt),
+    [lastUpdatedAt]
+  );
+
   const selectedAggregate: ScripAggregate | null = useMemo(() => {
     if (!portfolio || !selectedScrip) return null;
     return portfolio.byScrip.get(selectedScrip) ?? null;
@@ -262,7 +285,7 @@ export default function DashboardPage() {
     if (!s?.access_token) return;
     setScraping(true);
     setScrapeError(null);
-    setScrapeStartedMessage(null);
+    setDismissedScrapeJobId(null);
     try {
       const res = await fetch(apiUrl("/refresh"), {
         method: "POST",
@@ -270,9 +293,7 @@ export default function DashboardPage() {
           Authorization: `Bearer ${s.access_token}`,
         },
       });
-      const body = (await res.json().catch(() => ({}))) as {
-        detail?: string | { msg?: string }[];
-      };
+      const body = (await res.json().catch(() => ({}))) as RefreshResponse;
       if (!res.ok) {
         let msg = res.statusText;
         if (typeof body.detail === "string") msg = body.detail;
@@ -281,28 +302,24 @@ export default function DashboardPage() {
         setScrapeError(msg);
         return;
       }
-      setScrapeStartedMessage(
-        "Scraper started on the server. Data in Supabase will update when it finishes—check back in a few minutes or reload this page."
-      );
-      if (scrapeReloadTimerRef.current != null) {
-        window.clearTimeout(scrapeReloadTimerRef.current);
+      if (!body.jobId) {
+        setScrapeError("The server started the scraper but did not return a job id.");
+        return;
       }
-      scrapeReloadTimerRef.current = window.setTimeout(() => {
-        scrapeReloadTimerRef.current = null;
-        void loadData({ silent: true });
-      }, 45_000);
+      completedReloadJobRef.current = null;
+      setActiveScrapeJobId(body.jobId);
     } catch (e) {
       setScrapeError(errMsg(e));
     } finally {
       setScraping(false);
     }
-  }, [loadData]);
+  }, []);
 
   const displayError = fetchError ?? portfolioError ?? scrapeError;
 
-  const dismissScrapeStarted = useCallback(() => {
-    setScrapeStartedMessage(null);
-  }, []);
+  const dismissScrapeProgress = useCallback(() => {
+    if (activeScrapeJobId) setDismissedScrapeJobId(activeScrapeJobId);
+  }, [activeScrapeJobId]);
 
   if (authLoading) {
     return (
@@ -328,31 +345,38 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-500">
               Data from Supabase — WACC from FIFO cost when purchase sources exist.
             </p>
+            <p className="mt-1 text-xs text-slate-600">
+              Last updated: {lastUpdatedLabel}
+            </p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex flex-wrap items-center justify-end gap-3">
-            <button
-              type="button"
-              disabled={scraping || loading}
-              onClick={() => void handleRefreshScrape()}
-              className="inline-flex min-w-[10.5rem] items-center justify-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-50"
-              aria-busy={scraping}
-            >
-              {scraping ? <Spinner /> : null}
-              {scraping ? "Starting scrape…" : "Refresh data"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/50"
-            >
-              Sign out
-            </button>
+              <button
+                type="button"
+                disabled={scrapeInProgress || loading}
+                onClick={() => void handleRefreshScrape()}
+                className="inline-flex min-w-[10.5rem] items-center justify-center gap-2 rounded-lg border border-accent/60 bg-accent/10 px-4 py-2 text-sm font-medium text-accent transition hover:bg-accent/20 disabled:opacity-50"
+                aria-busy={scrapeInProgress}
+              >
+                {scrapeInProgress ? <Spinner /> : null}
+                {scraping
+                  ? "Starting scrape..."
+                  : scrapeInProgress
+                    ? "Refreshing..."
+                    : "Refresh data"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:bg-slate-800/50"
+              >
+                Sign out
+              </button>
             </div>
-            {scraping ? (
+            {scrapeInProgress ? (
               <p className="max-w-md text-right text-xs text-slate-500">
-                Contacting the server to start MeroShare import. This usually
-                takes a moment; the scraper then runs in the background.
+                Refresh is running on the Render backend. You can keep using
+                the dashboard while progress updates arrive.
               </p>
             ) : null}
           </div>
@@ -369,20 +393,13 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {scrapeStartedMessage && (
-          <div
-            className="flex flex-col gap-2 rounded-xl border border-emerald-900/50 bg-emerald-950/30 px-4 py-3 text-sm text-emerald-100 sm:flex-row sm:items-center sm:justify-between"
-            role="status"
-          >
-            <span>{scrapeStartedMessage}</span>
-            <button
-              type="button"
-              onClick={dismissScrapeStarted}
-              className="shrink-0 rounded-lg border border-emerald-800/80 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-900/40"
-            >
-              Dismiss
-            </button>
-          </div>
+        {showScrapeProgress && (
+          <ScrapeProgressCard
+            job={activeScrapeJob}
+            isStarting={scraping}
+            subscriptionError={subscriptionError}
+            onDismiss={dismissScrapeProgress}
+          />
         )}
 
         {!loading && txRows.length === 0 && (

@@ -1,5 +1,6 @@
 """FastAPI app: POST /api/meroshare/credentials, POST /refresh (background scraper)."""
 
+import datetime as dt
 import logging
 import os
 
@@ -66,18 +67,122 @@ def _format_postgrest_error(e: APIError) -> str:
     return " ".join(parts).strip() or "Supabase request failed"
 
 
-def _run_scraper_background(user_id: str) -> None:
+def _utc_now_iso() -> str:
+    return dt.datetime.now(dt.timezone.utc).isoformat()
+
+
+def create_scrape_job(user_id: str) -> str:
+    """Create a realtime-visible scrape job row using the service-role client."""
+    payload = {
+        "user_id": user_id,
+        "status": "running",
+        "progress": 5,
+        "message": "Starting scraper",
+        "completed": False,
+        "failed": False,
+        "error_message": None,
+        "started_at": _utc_now_iso(),
+    }
+    res = supabase.table("scrape_jobs").insert(payload).execute()
+    rows = res.data or []
+    if not rows or not rows[0].get("id"):
+        raise RuntimeError("Supabase did not return a scrape job id")
+    return str(rows[0]["id"])
+
+
+def update_job_progress(job_id: str, progress: int, message: str) -> None:
+    progress = max(0, min(100, int(progress)))
     try:
-        run_scraper(user_id, headless=True)
-        logger.info("Background scraper finished successfully for user_id=%s", user_id)
-    except ScraperError as e:
-        logger.error(
-            "Background scraper failed for user_id=%s: %s",
+        supabase.table("scrape_jobs").update(
+            {
+                "status": "running",
+                "progress": progress,
+                "message": message,
+                "completed": False,
+                "failed": False,
+                "error_message": None,
+            }
+        ).eq("id", job_id).execute()
+    except APIError as e:
+        logger.warning(
+            "Could not update scrape job progress job_id=%s: %s",
+            job_id,
+            _format_postgrest_error(e),
+        )
+
+
+def mark_job_complete(job_id: str) -> None:
+    try:
+        supabase.table("scrape_jobs").update(
+            {
+                "status": "completed",
+                "progress": 100,
+                "message": "Completed successfully",
+                "completed": True,
+                "failed": False,
+                "error_message": None,
+                "completed_at": _utc_now_iso(),
+            }
+        ).eq("id", job_id).execute()
+    except APIError as e:
+        logger.warning(
+            "Could not mark scrape job complete job_id=%s: %s",
+            job_id,
+            _format_postgrest_error(e),
+        )
+
+
+def mark_job_failed(job_id: str, error: str) -> None:
+    message = str(error).strip() or "Scraper failed"
+    try:
+        supabase.table("scrape_jobs").update(
+            {
+                "status": "failed",
+                "message": "Scraper failed",
+                "completed": False,
+                "failed": True,
+                "error_message": message,
+                "completed_at": _utc_now_iso(),
+            }
+        ).eq("id", job_id).execute()
+    except APIError as e:
+        logger.warning(
+            "Could not mark scrape job failed job_id=%s: %s",
+            job_id,
+            _format_postgrest_error(e),
+        )
+
+
+def _run_scraper_background(user_id: str, job_id: str) -> None:
+    try:
+        run_scraper(
             user_id,
+            headless=True,
+            progress_callback=lambda progress, message: update_job_progress(
+                job_id, progress, message
+            ),
+        )
+        mark_job_complete(job_id)
+        logger.info(
+            "Background scraper finished successfully for user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+    except ScraperError as e:
+        mark_job_failed(job_id, str(e))
+        logger.error(
+            "Background scraper failed for user_id=%s job_id=%s: %s",
+            user_id,
+            job_id,
             e,
         )
-    except Exception:
-        logger.exception("Background scraper crashed for user_id=%s", user_id)
+    except Exception as e:
+        mark_job_failed(job_id, str(e))
+        logger.exception(
+            "Background scraper crashed for user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
 
 
 class MeroshareCredentialsBody(BaseModel):
@@ -199,6 +304,21 @@ def post_refresh(request: Request, background_tasks: BackgroundTasks) -> dict:
             detail="Save MeroShare credentials in the dashboard before scraping.",
         )
 
-    background_tasks.add_task(_run_scraper_background, user_id)
-    logger.info("Queued background scraper for user_id=%s", user_id)
-    return {"status": "scraper started"}
+    try:
+        job_id = create_scrape_job(user_id)
+    except APIError as e:
+        logger.warning("scrape_jobs insert failed: %s", e.json())
+        raise HTTPException(
+            status_code=502,
+            detail=_format_postgrest_error(e),
+        ) from e
+    except Exception as e:
+        logger.exception("scrape_jobs insert failed unexpectedly")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not create scrape job: {e!s}",
+        ) from e
+
+    background_tasks.add_task(_run_scraper_background, user_id, job_id)
+    logger.info("Queued background scraper for user_id=%s job_id=%s", user_id, job_id)
+    return {"jobId": job_id, "status": "scraper started"}

@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 from collections import defaultdict
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -30,6 +30,21 @@ from scraper_db import (
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[int, str], None]
+
+
+def _emit_progress(
+    progress_callback: Optional[ProgressCallback],
+    progress: int,
+    message: str,
+) -> None:
+    if progress_callback is None:
+        return
+    try:
+        progress_callback(progress, message)
+    except Exception:
+        logger.exception("Progress callback failed at %s%%: %s", progress, message)
 
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
@@ -359,6 +374,7 @@ async def scrape_purchase_sources(
     scrips: List[str],
     *,
     pause_sec: float = 1.5,
+    progress_callback: Optional[ProgressCallback] = None,
 ) -> List[Dict[str, str]]:
     """For each scrip, search My Purchase Source; each result table maps to canonical purchase rows."""
     all_rows: List[Dict[str, str]] = []
@@ -373,6 +389,13 @@ async def scrape_purchase_sources(
 
     to_scrape = [str(s).strip() for s in scrips if str(s).strip()]
     for i, sym in enumerate(to_scrape, start=1):
+        if to_scrape:
+            progress = 60 + int((i - 1) * 18 / len(to_scrape))
+            _emit_progress(
+                progress_callback,
+                progress,
+                f"Processing purchase sources ({i}/{len(to_scrape)}): {sym}",
+            )
         logger.info(
             "[info] Scraping purchase source for scrip %s/%s: %s",
             i,
@@ -709,11 +732,17 @@ class ScraperError(Exception):
     """Raised when the MeroShare scrape cannot complete successfully."""
 
 
-async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
+async def async_run_scraper(
+    user_id: str,
+    *,
+    headless: bool = True,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> None:
     """
     Load credentials for user_id, run Playwright scrape, upsert transactions and purchase_sources.
     Raises ScraperError on expected failures; may propagate other exceptions from I/O or Playwright.
     """
+    _emit_progress(progress_callback, 5, "Starting scraper")
     try:
         username, password, dp = fetch_meroshare_credentials(user_id)
     except ValueError as e:
@@ -728,6 +757,7 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
     os.makedirs(os.path.abspath(tmp_download), exist_ok=True)
     try:
         async with async_playwright() as p:
+            _emit_progress(progress_callback, 10, "Launching browser")
             launch_kwargs = {
                 "headless": headless,
                 "args": ["--no-sandbox", "--disable-dev-shm-usage"],
@@ -745,6 +775,7 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
             )
             page = await context.new_page()
             try:
+                _emit_progress(progress_callback, 20, "Logging into MeroShare")
                 logger.info("[info] Logging into MeroShare with DP: %s", dp)
                 scraped_at = (
                     dt.datetime.now(dt.timezone.utc)
@@ -758,6 +789,7 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                 ):
                     raise ScraperError("Login failed")
                 logger.info("[info] Login successful, scraping transactions...")
+                _emit_progress(progress_callback, 40, "Fetching transactions")
                 records = await scrape_transactions(page, tmp_download)
                 if not records:
                     raise ScraperError("No transactions data found")
@@ -785,12 +817,23 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                         "[warn] No open positions in transaction data; "
                         "skipping purchase source"
                     )
+                    _emit_progress(
+                        progress_callback,
+                        80,
+                        "No open positions; skipping portfolio/LTP",
+                    )
+                    _emit_progress(progress_callback, 90, "Saving/upserting data")
                 else:
+                    _emit_progress(progress_callback, 60, "Fetching purchase sources")
                     logger.info(
                         "[info] Scraping purchase source for %s open scrip(s)...",
                         len(open_syms),
                     )
-                    purchase_rows = await scrape_purchase_sources(page, open_syms)
+                    purchase_rows = await scrape_purchase_sources(
+                        page,
+                        open_syms,
+                        progress_callback=progress_callback,
+                    )
                     logger.info(
                         "[info] Purchase sources: scraped %s row(s) from MeroShare",
                         len(purchase_rows),
@@ -817,6 +860,7 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                     else:
                         logger.warning("[warn] No purchase source rows collected")
 
+                    _emit_progress(progress_callback, 80, "Fetching portfolio/LTP")
                     logger.info(
                         "[info] Scraping portfolio LTP for %s open scrip(s)...",
                         len(open_syms),
@@ -827,6 +871,7 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                         len(ltp_rows),
                     )
                     ltp_payload = scrip_ltp_rows_to_payload(uid, ltp_rows, scraped_at)
+                    _emit_progress(progress_callback, 90, "Saving/upserting data")
                     upsert_scrip_ltp(ltp_payload)
 
                 summary = (
@@ -843,14 +888,26 @@ async def async_run_scraper(user_id: str, *, headless: bool = True) -> None:
                         f"; ltp {lr} scraped → {lu} upserted"
                     )
                 logger.info("%s", summary)
+                _emit_progress(progress_callback, 100, "Completed")
             finally:
                 await browser.close()
     finally:
         shutil.rmtree(tmp_download, ignore_errors=True)
 
 
-def run_scraper(user_id: str, *, headless: bool = True) -> None:
-    asyncio.run(async_run_scraper(user_id, headless=headless))
+def run_scraper(
+    user_id: str,
+    *,
+    headless: bool = True,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> None:
+    asyncio.run(
+        async_run_scraper(
+            user_id,
+            headless=headless,
+            progress_callback=progress_callback,
+        )
+    )
 
 
 def main():
