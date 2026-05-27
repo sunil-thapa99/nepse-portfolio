@@ -12,6 +12,58 @@ function purchaseLineSortKey(line: ParsedPurchaseLine): string {
   return d;
 }
 
+function qtyMatch(lineQty: number, credit: number): boolean {
+  return Math.abs(lineQty - credit) < 1e-6;
+}
+
+function dayDistance(txDate: string, purchaseDate: string): number {
+  const p = purchaseDate.trim();
+  if (!p) return 100_000;
+  const a = Date.parse(`${txDate.trim()}T12:00:00`);
+  const b = Date.parse(`${p}T12:00:00`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return 100_000;
+  return Math.abs(Math.round((a - b) / 86400000));
+}
+
+function isDrepTransaction(tx: ParsedTransaction): boolean {
+  return tx.credit > 0 && tx.description.toUpperCase().includes("DREP");
+}
+
+function drepLineIndexes(
+  txsOldestFirst: ParsedTransaction[],
+  linesSorted: ParsedPurchaseLine[]
+): Set<number> {
+  const drepTxs = txsOldestFirst.filter(isDrepTransaction);
+  const matched = new Set<number>();
+
+  for (const tx of drepTxs) {
+    const candidates = linesSorted
+      .map((line, idx) => ({ line, idx }))
+      .filter(({ line, idx }) => !matched.has(idx) && qtyMatch(line.quantity, tx.credit));
+
+    if (candidates.length === 0) continue;
+
+    let best = candidates[0];
+    let bestDist = dayDistance(tx.date, best.line.transactionDate);
+    for (let i = 1; i < candidates.length; i++) {
+      const c = candidates[i];
+      const dist = dayDistance(tx.date, c.line.transactionDate);
+      if (
+        dist < bestDist ||
+        (dist === bestDist &&
+          purchaseLineSortKey(c.line).localeCompare(purchaseLineSortKey(best.line)) < 0)
+      ) {
+        best = c;
+        bestDist = dist;
+      }
+    }
+
+    matched.add(best.idx);
+  }
+
+  return matched;
+}
+
 export function fifoCostForOpenPosition(
   txsOldestFirst: ParsedTransaction[],
   linesForScrip: ParsedPurchaseLine[],
@@ -24,11 +76,15 @@ export function fifoCostForOpenPosition(
   const sorted = [...linesForScrip].sort((a, b) =>
     purchaseLineSortKey(a).localeCompare(purchaseLineSortKey(b))
   );
+  const drepIndexes = drepLineIndexes(txsOldestFirst, sorted);
 
   type Lot = { remaining: number; unitCost: number };
-  const lots: Lot[] = sorted.map((l) => ({
-    remaining: l.quantity,
-    unitCost: l.isBonus || isZeroCostPurchaseSource(l.purchaseSource) ? 0 : l.rate,
+  const lots: Lot[] = sorted.map((line, idx) => ({
+    remaining: line.quantity,
+    unitCost:
+      line.isBonus || isZeroCostPurchaseSource(line.purchaseSource) || drepIndexes.has(idx)
+        ? 0
+        : line.rate,
   }));
 
   for (const tx of txsOldestFirst) {

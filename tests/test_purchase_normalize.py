@@ -164,7 +164,7 @@ class TestPurchaseFillDates(unittest.TestCase):
         m._purchase_fill_dates_from_transactions(purchase, txs)
         self.assertEqual(purchase[0]["Transaction Date"], "2020-01-01")
 
-    def test_drep_match_sets_zero_rate(self) -> None:
+    def test_drep_match_preserves_scraped_rate_and_source(self) -> None:
         purchase = [
             {
                 "Scrip": "NIBLSF",
@@ -184,8 +184,8 @@ class TestPurchaseFillDates(unittest.TestCase):
         ]
         m._purchase_fill_dates_from_transactions(purchase, txs)
         self.assertEqual(purchase[0]["Transaction Date"], "2026-01-15")
-        self.assertEqual(purchase[0]["Rate"], "0")
-        self.assertEqual(purchase[0]["Purchase Source"], "DREP")
+        self.assertEqual(purchase[0]["Rate"], "10")
+        self.assertEqual(purchase[0]["Purchase Source"], "ON_MARKET")
 
 
 if __name__ == "__main__":

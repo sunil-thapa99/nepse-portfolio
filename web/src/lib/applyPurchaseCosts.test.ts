@@ -5,7 +5,8 @@ import type { ParsedPurchaseLine, ParsedTransaction } from "./types";
 function tx(
   sn: number,
   credit: number,
-  debit: number
+  debit: number,
+  description = ""
 ): ParsedTransaction {
   return {
     sn,
@@ -14,7 +15,7 @@ function tx(
     credit,
     debit,
     balanceAfter: 0,
-    description: "",
+    description,
     category: "Secondary buy",
   };
 }
@@ -65,18 +66,18 @@ describe("fifoCostForOpenPosition", () => {
     expect(totalInvestedNPR).toBe(0);
   });
 
-  it("zero cost for DREP lots", () => {
+  it("zero cost for DREP-matched lots without changing stored rate/source", () => {
     const lines: ParsedPurchaseLine[] = [
       {
         scrip: "ABC",
         transactionDate: "2024-01-01",
         quantity: 10,
         rate: 100,
-        purchaseSource: "DREP",
+        purchaseSource: "ON_MARKET",
         isBonus: false,
       },
     ];
-    const txs: ParsedTransaction[] = [tx(1, 10, 0)];
+    const txs: ParsedTransaction[] = [tx(1, 10, 0, "DREP CREDIT")];
     const { waccNPR, totalInvestedNPR } = fifoCostForOpenPosition(
       txs,
       lines,

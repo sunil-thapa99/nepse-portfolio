@@ -559,10 +559,6 @@ def _canonical_purchase_source(raw: str) -> str:
     return t.upper().replace("-", "_")
 
 
-def _is_drep_transaction(rec: Dict[str, str]) -> bool:
-    return "DREP" in str(rec.get("History Description", "")).upper()
-
-
 def _normalize_purchase_table_df(
     df: pd.DataFrame, query_scrip: str
 ) -> List[Dict[str, str]]:
@@ -639,12 +635,12 @@ def _normalize_purchase_table_df(
 
 def _purchase_tx_date_index(
     tx_records: List[Dict[str, str]],
-) -> Dict[Tuple[str, str], List[Tuple[str, bool]]]:
+) -> Dict[Tuple[str, str], List[str]]:
     """
-    Map (scrip_upper, quantity_str) -> transaction dates and zero-cost DREP marker.
+    Map (scrip_upper, quantity_str) -> transaction dates (Credit Quantity match).
     quantity_str normalized like _purchase_format_quantity for lookup.
     """
-    idx: Dict[Tuple[str, str], List[Tuple[str, bool]]] = defaultdict(list)
+    idx: Dict[Tuple[str, str], List[str]] = defaultdict(list)
     for rec in tx_records:
         scrip = str(rec.get("Scrip", "")).strip()
         if not scrip:
@@ -656,15 +652,8 @@ def _purchase_tx_date_index(
         if not date:
             continue
         qkey = _purchase_format_quantity(cq)
-        idx[(scrip.upper(), qkey)].append((date, _is_drep_transaction(rec)))
-
-    deduped: Dict[Tuple[str, str], List[Tuple[str, bool]]] = {}
-    for key, values in idx.items():
-        by_date: Dict[str, bool] = {}
-        for date, is_drep in values:
-            by_date[date] = by_date.get(date, False) or is_drep
-        deduped[key] = [(date, by_date[date]) for date in sorted(by_date)]
-    return deduped
+        idx[(scrip.upper(), qkey)].append(date)
+    return {k: sorted(set(v)) for k, v in idx.items()}
 
 
 def _purchase_fill_dates_from_transactions(
@@ -686,14 +675,10 @@ def _purchase_fill_dates_from_transactions(
         if qf is None or qf <= 0:
             continue
         qkey = _purchase_format_quantity(qf)
-        matches = index.get((scrip.upper(), qkey))
-        if not matches:
+        dates = index.get((scrip.upper(), qkey))
+        if not dates:
             continue
-        date, is_drep = matches[0]
-        rec["Transaction Date"] = date
-        if is_drep:
-            rec["Rate"] = "0"
-            rec["Purchase Source"] = "DREP"
+        rec["Transaction Date"] = dates[0]
 
 
 def finalize_purchase_sources_rows(
