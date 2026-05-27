@@ -207,24 +207,33 @@ export default function DashboardPage() {
         openPositions: 0,
         totalOpenUnits: 0,
         totalCostBasisNPR: null as number | null,
+        totalProfitLossNPR: null as number | null,
       };
     }
     const all = portfolio.orderedScrips.map((s) => portfolio.byScrip.get(s)!);
     const open = all.filter((a) => a.currentUnits > 0);
     let costSum = 0;
     let anyCost = false;
+    let profitLossSum = 0;
+    let anyProfitLoss = false;
     for (const a of open) {
       if (a.totalInvestedNPR != null) {
         costSum += a.totalInvestedNPR;
         anyCost = true;
+      }
+      const ltp = ltpByScrip.get(a.scrip.toUpperCase()) ?? null;
+      if (ltp != null && a.waccNPR != null) {
+        profitLossSum += (ltp - a.waccNPR) * a.currentUnits;
+        anyProfitLoss = true;
       }
     }
     return {
       openPositions: open.length,
       totalOpenUnits: open.reduce((s, a) => s + a.currentUnits, 0),
       totalCostBasisNPR: anyCost ? costSum : null,
+      totalProfitLossNPR: anyProfitLoss ? profitLossSum : null,
     };
-  }, [portfolio]);
+  }, [portfolio, ltpByScrip]);
 
   const selectedAggregate: ScripAggregate | null = useMemo(() => {
     if (!portfolio || !selectedScrip) return null;
@@ -404,34 +413,8 @@ export default function DashboardPage() {
                   openPositions={summary.openPositions}
                   totalOpenUnits={summary.totalOpenUnits}
                   totalCostBasisNPR={summary.totalCostBasisNPR}
+                  totalProfitLossNPR={summary.totalProfitLossNPR}
                 />
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div className="flex-1">
-                    <label htmlFor="scrip-filter" className="sr-only">
-                      Filter by scrip
-                    </label>
-                    <input
-                      id="scrip-filter"
-                      type="search"
-                      placeholder="Filter by scrip name…"
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      className="w-full max-w-md rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-                    />
-                  </div>
-                  {rawDataView === "positions" ? (
-                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
-                      <input
-                        type="checkbox"
-                        checked={openOnly}
-                        onChange={(e) => setOpenOnly(e.target.checked)}
-                        className="rounded border-slate-600 bg-surface-raised text-accent focus:ring-accent"
-                      />
-                      Hide fully sold scrips
-                    </label>
-                  ) : null}
-                </div>
               </>
             )}
 
@@ -474,7 +457,32 @@ export default function DashboardPage() {
                     Transactions
                   </button>
                 </div>
-                {rawDataView === "transactions" ? (
+                {rawDataView === "positions" ? (
+                  <div className="flex min-w-0 flex-1 flex-col gap-3 sm:max-w-2xl sm:flex-row sm:items-center sm:justify-end">
+                    <div className="min-w-0 flex-1 sm:max-w-md">
+                      <label htmlFor="scrip-filter" className="sr-only">
+                        Filter by scrip
+                      </label>
+                      <input
+                        id="scrip-filter"
+                        type="search"
+                        placeholder="Filter by scrip name…"
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        className="w-full rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={openOnly}
+                        onChange={(e) => setOpenOnly(e.target.checked)}
+                        className="rounded border-slate-600 bg-surface-raised text-accent focus:ring-accent"
+                      />
+                      Hide fully sold scrips
+                    </label>
+                  </div>
+                ) : (
                   <div className="min-w-0 flex-1 sm:max-w-md">
                     <label htmlFor="raw-data-filter" className="sr-only">
                       Filter transaction rows
@@ -488,7 +496,7 @@ export default function DashboardPage() {
                       className="w-full rounded-xl border border-slate-600 bg-surface-raised px-4 py-2.5 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
                     />
                   </div>
-                ) : null}
+                )}
               </div>
 
               {rawDataView === "positions" ? (
