@@ -1,0 +1,367 @@
+{
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.claude/settings.local.json": {
+    "mtime": 1781467475.8199801,
+    "ast_hash": "d8c5a862f8c078222467c0dc9a58e4d5",
+    "semantic_hash": "d8c5a862f8c078222467c0dc9a58e4d5"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/activate.ps1": {
+    "mtime": 1774734481.1591125,
+    "ast_hash": "5c17f56b696228e8ab8d9eb0458cbe77",
+    "semantic_hash": "5c17f56b696228e8ab8d9eb0458cbe77"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/activate_this.py": {
+    "mtime": 1774734481.1594872,
+    "ast_hash": "eff59a5062fd4a1d0bd594340f29715e",
+    "semantic_hash": "eff59a5062fd4a1d0bd594340f29715e"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/dotenv": {
+    "mtime": 1774734481.2222593,
+    "ast_hash": "8c9af0762597c00464ea0dbbafdc528a",
+    "semantic_hash": "8c9af0762597c00464ea0dbbafdc528a"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/f2py": {
+    "mtime": 1774734481.2286627,
+    "ast_hash": "179d4b4c96ca5fee50a982e62853a709",
+    "semantic_hash": "179d4b4c96ca5fee50a982e62853a709"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/fastapi": {
+    "mtime": 1774734481.2205355,
+    "ast_hash": "3c592671e595ea246b1b18d5ea19d4c3",
+    "semantic_hash": "3c592671e595ea246b1b18d5ea19d4c3"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/httpx": {
+    "mtime": 1774734481.2300146,
+    "ast_hash": "9c55d9bbd3a6509c953f99d968b44089",
+    "semantic_hash": "9c55d9bbd3a6509c953f99d968b44089"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/markdown-it": {
+    "mtime": 1774734481.278111,
+    "ast_hash": "f569dcebe05c7c7da3315f1657900221",
+    "semantic_hash": "f569dcebe05c7c7da3315f1657900221"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/normalizer": {
+    "mtime": 1774734481.2761478,
+    "ast_hash": "97d73eec4184a23be774f4f83d140589",
+    "semantic_hash": "97d73eec4184a23be774f4f83d140589"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/numpy-config": {
+    "mtime": 1774734481.229535,
+    "ast_hash": "db7ecbb161f982394222c03a620454ec",
+    "semantic_hash": "db7ecbb161f982394222c03a620454ec"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/pygmentize": {
+    "mtime": 1774734481.2809339,
+    "ast_hash": "9760169345097fae7c7e686432992c65",
+    "semantic_hash": "9760169345097fae7c7e686432992c65"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/pyiceberg": {
+    "mtime": 1774734481.2756257,
+    "ast_hash": "59f8888718ab80fe6cc945cefc1e6e2d",
+    "semantic_hash": "59f8888718ab80fe6cc945cefc1e6e2d"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/uvicorn": {
+    "mtime": 1774734481.2116816,
+    "ast_hash": "1c6830594668c54a823cff8224bfa656",
+    "semantic_hash": "1c6830594668c54a823cff8224bfa656"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/watchfiles": {
+    "mtime": 1774734481.2283077,
+    "ast_hash": "b92dd016e333e3460365f1a5a55f5f45",
+    "semantic_hash": "b92dd016e333e3460365f1a5a55f5f45"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/websockets": {
+    "mtime": 1774734481.2525256,
+    "ast_hash": "4044cea96549188c99a0e2448f6a1c70",
+    "semantic_hash": "4044cea96549188c99a0e2448f6a1c70"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.venv.broken-1775330552/bin/wsdump": {
+    "mtime": 1774734481.2725172,
+    "ast_hash": "c6b176350b1c39642e51d40382607b78",
+    "semantic_hash": "c6b176350b1c39642e51d40382607b78"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/DB/main.sql": {
+    "mtime": 1779908943.107461,
+    "ast_hash": "e07c26b963a27837b8f770d1d86ed96f",
+    "semantic_hash": "e07c26b963a27837b8f770d1d86ed96f"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/DB/migrations/002_scraper_upsert.sql": {
+    "mtime": 1774733521.8425133,
+    "ast_hash": "8689d4a957f19e2d36c1edaf5e3a6f12",
+    "semantic_hash": "8689d4a957f19e2d36c1edaf5e3a6f12"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/DB/migrations/003_line_hash_natural_keys.sql": {
+    "mtime": 1775331910.1513255,
+    "ast_hash": "f1acda812d4b0c3e286574b960e0dc16",
+    "semantic_hash": "f1acda812d4b0c3e286574b960e0dc16"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/DB/migrations/004_scrip_ltp.sql": {
+    "mtime": 1776099036.6020534,
+    "ast_hash": "1da3f6b68d44967d4080f820a6e041c8",
+    "semantic_hash": "1da3f6b68d44967d4080f820a6e041c8"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/DB/migrations/005_scrape_jobs.sql": {
+    "mtime": 1779908938.3051202,
+    "ast_hash": "fe43a35d6f233723f28728a55ebb8959",
+    "semantic_hash": "fe43a35d6f233723f28728a55ebb8959"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/api_app.py": {
+    "mtime": 1779908968.9527538,
+    "ast_hash": "7ab032eeeb3dc86a4c4851c66da4a72b",
+    "semantic_hash": "7ab032eeeb3dc86a4c4851c66da4a72b"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/main.py": {
+    "mtime": 1779909009.6143644,
+    "ast_hash": "decb6d023ce28d2ad5805e9a6143ef0d",
+    "semantic_hash": "decb6d023ce28d2ad5805e9a6143ef0d"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/meroshare_crypto.py": {
+    "mtime": 1774733451.6471374,
+    "ast_hash": "1df1f83f82eadbbe45a6312c62797cfd",
+    "semantic_hash": "1df1f83f82eadbbe45a6312c62797cfd"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/scraper_db.py": {
+    "mtime": 1776099051.8263505,
+    "ast_hash": "89b1559483950e3c6d9c4cad9850c3af",
+    "semantic_hash": "89b1559483950e3c6d9c4cad9850c3af"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/supabase_client.py": {
+    "mtime": 1775268218.3448343,
+    "ast_hash": "bbd080bed10078d2d0c4bb5e6608a4e3",
+    "semantic_hash": "bbd080bed10078d2d0c4bb5e6608a4e3"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/tests/test_purchase_normalize.py": {
+    "mtime": 1779902803.2382414,
+    "ast_hash": "7b14823cbfdb63a79fdd430b73e512d0",
+    "semantic_hash": "7b14823cbfdb63a79fdd430b73e512d0"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/package.json": {
+    "mtime": 1779910528.3338017,
+    "ast_hash": "e89ea38df174a94725009312116bfe81",
+    "semantic_hash": "e89ea38df174a94725009312116bfe81"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/postcss.config.js": {
+    "mtime": 1774674533.7719843,
+    "ast_hash": "c735540bb63936a123bc867d950c9f69",
+    "semantic_hash": "c735540bb63936a123bc867d950c9f69"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/App.tsx": {
+    "mtime": 1779901812.6193624,
+    "ast_hash": "cf5bb133160d0f35c5b3b3ccd90513e5",
+    "semantic_hash": "cf5bb133160d0f35c5b3b3ccd90513e5"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/auth/AuthContext.tsx": {
+    "mtime": 1775525449.6090496,
+    "ast_hash": "0768ac29db645f6caaa6c8909436ac90",
+    "semantic_hash": "0768ac29db645f6caaa6c8909436ac90"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/HoldingsTable.tsx": {
+    "mtime": 1779901812.6271648,
+    "ast_hash": "0ab2c0068fa04f9872c13b38b469c9e9",
+    "semantic_hash": "0ab2c0068fa04f9872c13b38b469c9e9"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/MeroshareCredentials.tsx": {
+    "mtime": 1775350141.9112182,
+    "ast_hash": "c360ff4cb05244b55772b81b8a7c88cd",
+    "semantic_hash": "c360ff4cb05244b55772b81b8a7c88cd"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/PasswordInput.tsx": {
+    "mtime": 1774735504.669406,
+    "ast_hash": "8dbb25cd2dd420e56f4e34dce8d8a3aa",
+    "semantic_hash": "8dbb25cd2dd420e56f4e34dce8d8a3aa"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/PlaceholderMoney.tsx": {
+    "mtime": 1774893988.3154297,
+    "ast_hash": "029888425a711c7b7f4fe5b8a9a83b28",
+    "semantic_hash": "029888425a711c7b7f4fe5b8a9a83b28"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/ProtectedRoute.tsx": {
+    "mtime": 1774733021.037133,
+    "ast_hash": "a8468842d8b52d36624a2970cbc4e3e5",
+    "semantic_hash": "a8468842d8b52d36624a2970cbc4e3e5"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/ScrapeProgressCard.tsx": {
+    "mtime": 1779909066.9554565,
+    "ast_hash": "b08237752be6f8969b1089b0f1fc906b",
+    "semantic_hash": "b08237752be6f8969b1089b0f1fc906b"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/SoldSections.tsx": {
+    "mtime": 1774740267.9301553,
+    "ast_hash": "129b6b33dfa353d42cd8f786e609aefb",
+    "semantic_hash": "129b6b33dfa353d42cd8f786e609aefb"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/StockDetail.tsx": {
+    "mtime": 1779901812.6194031,
+    "ast_hash": "30d3d0354ff392810a9b0cf8ffea22b9",
+    "semantic_hash": "30d3d0354ff392810a9b0cf8ffea22b9"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/components/SummaryCards.tsx": {
+    "mtime": 1779903602.8303587,
+    "ast_hash": "6c7ee0ed6d1fc06ed9a1bdd8290fb5bb",
+    "semantic_hash": "6c7ee0ed6d1fc06ed9a1bdd8290fb5bb"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/hooks/useScrapeJobRealtime.ts": {
+    "mtime": 1779909041.3661103,
+    "ast_hash": "fd0d0e61b538bf0c88aadc9976dafe0f",
+    "semantic_hash": "fd0d0e61b538bf0c88aadc9976dafe0f"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/aggregatePortfolio.test.ts": {
+    "mtime": 1774674827.4165707,
+    "ast_hash": "1e1dc5b668d858b677ff02e3123ca15a",
+    "semantic_hash": "1e1dc5b668d858b677ff02e3123ca15a"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/aggregatePortfolio.ts": {
+    "mtime": 1776099107.488225,
+    "ast_hash": "9f6ba7fa78a809997886ca3eea578a4f",
+    "semantic_hash": "9f6ba7fa78a809997886ca3eea578a4f"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/apiUrl.ts": {
+    "mtime": 1775277103.2722147,
+    "ast_hash": "095db59421bd645509cf5022b70c5267",
+    "semantic_hash": "095db59421bd645509cf5022b70c5267"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/applyPurchaseCosts.test.ts": {
+    "mtime": 1779902807.3563583,
+    "ast_hash": "abff0074e88085516c8f8ed5724f046f",
+    "semantic_hash": "abff0074e88085516c8f8ed5724f046f"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/applyPurchaseCosts.ts": {
+    "mtime": 1779902795.5370405,
+    "ast_hash": "5398d725565a4ecaa063368b55124b04",
+    "semantic_hash": "5398d725565a4ecaa063368b55124b04"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/classifyTransaction.test.ts": {
+    "mtime": 1774674794.573756,
+    "ast_hash": "f0b7ef5d88ff725882d5a87c0d98b7a7",
+    "semantic_hash": "f0b7ef5d88ff725882d5a87c0d98b7a7"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/classifyTransaction.ts": {
+    "mtime": 1774674576.1886775,
+    "ast_hash": "cfad986962fcbe3d4aae7fe01d32b43c",
+    "semantic_hash": "cfad986962fcbe3d4aae7fe01d32b43c"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/mapDbToPortfolio.ts": {
+    "mtime": 1776099102.817116,
+    "ast_hash": "5fcdda23159ffab3834c347535ccbcf7",
+    "semantic_hash": "5fcdda23159ffab3834c347535ccbcf7"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/matchTxPurchaseRate.test.ts": {
+    "mtime": 1774729641.9184122,
+    "ast_hash": "3773f048ab284316feb6f426cfccc381",
+    "semantic_hash": "3773f048ab284316feb6f426cfccc381"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/matchTxPurchaseRate.ts": {
+    "mtime": 1774729610.6875076,
+    "ast_hash": "7edd8225c255654483fa805875bc4e4c",
+    "semantic_hash": "7edd8225c255654483fa805875bc4e4c"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/parsePurchaseCsv.test.ts": {
+    "mtime": 1779902158.9668007,
+    "ast_hash": "7149b71c8894583b0ef426d9e3c3d092",
+    "semantic_hash": "7149b71c8894583b0ef426d9e3c3d092"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/parsePurchaseCsv.ts": {
+    "mtime": 1779902135.5900555,
+    "ast_hash": "e773f02aa6e749d9046827c38fa8adef",
+    "semantic_hash": "e773f02aa6e749d9046827c38fa8adef"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/scrapeJobs.ts": {
+    "mtime": 1779909032.9919991,
+    "ast_hash": "04fa2ad16a194f6c83bd76a1ed3a04d1",
+    "semantic_hash": "04fa2ad16a194f6c83bd76a1ed3a04d1"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/siteUrl.ts": {
+    "mtime": 1775508384.763253,
+    "ast_hash": "8325f1499f599e9001da81ac7291ae46",
+    "semantic_hash": "8325f1499f599e9001da81ac7291ae46"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/supabaseClient.ts": {
+    "mtime": 1774734851.6994464,
+    "ast_hash": "33a49fbd7278fa80d801244f14f6602b",
+    "semantic_hash": "33a49fbd7278fa80d801244f14f6602b"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/lib/types.ts": {
+    "mtime": 1779901812.619382,
+    "ast_hash": "c1359159dc396c8346c5bec923576002",
+    "semantic_hash": "c1359159dc396c8346c5bec923576002"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/main.tsx": {
+    "mtime": 1774733013.120551,
+    "ast_hash": "65e29fb112fedda45b3077362dc1aa8f",
+    "semantic_hash": "65e29fb112fedda45b3077362dc1aa8f"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/pages/AuthPage.tsx": {
+    "mtime": 1775525485.8573987,
+    "ast_hash": "ffea1f5a9721afc9012569b826b99772",
+    "semantic_hash": "ffea1f5a9721afc9012569b826b99772"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/pages/DashboardPage.tsx": {
+    "mtime": 1779909113.0345273,
+    "ast_hash": "eca95a4fb11e05af77d1247bb8d55121",
+    "semantic_hash": "eca95a4fb11e05af77d1247bb8d55121"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/src/vite-env.d.ts": {
+    "mtime": 1775508389.477962,
+    "ast_hash": "94d66b60033aa57436ebe0f8e19c0a84",
+    "semantic_hash": "94d66b60033aa57436ebe0f8e19c0a84"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/tailwind.config.js": {
+    "mtime": 1774674533.246747,
+    "ast_hash": "1371c78e39550afb4dfdac61216e403e",
+    "semantic_hash": "1371c78e39550afb4dfdac61216e403e"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/tsconfig.json": {
+    "mtime": 1774893988.313873,
+    "ast_hash": "aadb02862344095776d7990d64a854c1",
+    "semantic_hash": "aadb02862344095776d7990d64a854c1"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/tsconfig.node.json": {
+    "mtime": 1774674528.1149662,
+    "ast_hash": "f3b9f0cd919217d16f14161a2ad09dd7",
+    "semantic_hash": "f3b9f0cd919217d16f14161a2ad09dd7"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/vercel.json": {
+    "mtime": 1775509567.5167127,
+    "ast_hash": "3ce034f37a6661efc8073a99b87d2c87",
+    "semantic_hash": "3ce034f37a6661efc8073a99b87d2c87"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/vite.config.ts": {
+    "mtime": 1779901812.6194377,
+    "ast_hash": "bd79a9c0f5cb8ae002add2aac0c542ae",
+    "semantic_hash": "bd79a9c0f5cb8ae002add2aac0c542ae"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/vitest.config.ts": {
+    "mtime": 1774674529.5168698,
+    "ast_hash": "6bf2fe2fe381c21fb30b393f744df757",
+    "semantic_hash": "6bf2fe2fe381c21fb30b393f744df757"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.github/dependabot.yml": {
+    "mtime": 1775246116.6950648,
+    "ast_hash": "191c2b71fd37f3da33d1ed2725c67773",
+    "semantic_hash": "191c2b71fd37f3da33d1ed2725c67773"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.github/workflows/ci.yml": {
+    "mtime": 1775245176.8366215,
+    "ast_hash": "df4baf75db3e1ab2105136780ea7bb6e",
+    "semantic_hash": "df4baf75db3e1ab2105136780ea7bb6e"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/.github/workflows/meroshare-scrape.yml": {
+    "mtime": 1775499128.5436122,
+    "ast_hash": "21df4cf76bf11e9f88b1a4fec9eb1096",
+    "semantic_hash": "21df4cf76bf11e9f88b1a4fec9eb1096"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/README.md": {
+    "mtime": 1779904763.2366126,
+    "ast_hash": "fb70e1fe2523714e2d4a2cb69a9925de",
+    "semantic_hash": "fb70e1fe2523714e2d4a2cb69a9925de"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/render.yaml": {
+    "mtime": 1775333039.545737,
+    "ast_hash": "43d8608d262b94bf8e82627ebdf9231d",
+    "semantic_hash": "43d8608d262b94bf8e82627ebdf9231d"
+  },
+  "/Users/sunilthapa/Desktop/Project/nepse-portfolio/web/index.html": {
+    "mtime": 1774674530.7422569,
+    "ast_hash": "3a8b17e1d3a376e4a0ef5b760d266650",
+    "semantic_hash": "3a8b17e1d3a376e4a0ef5b760d266650"
+  }
+}
