@@ -36,12 +36,14 @@ The frontend does not talk to GitHub Actions. Manual refresh goes through the Fa
 
 1. A user signs in with Supabase Auth.
 2. The dashboard reads the user's `transactions`, `purchase_sources`, and `scrip_ltp` rows from Supabase.
-3. The user saves MeroShare credentials through `POST /api/meroshare/credentials`.
-4. The API verifies the Supabase access token and stores the password encrypted in `meroshare_credentials`.
+3. The user saves MeroShare credentials through `POST /api/meroshare/credentials` (username, password, DP ID, CRN, and transaction PIN).
+4. The API verifies the Supabase access token and stores the password and transaction PIN encrypted in `meroshare_credentials`.
 5. The user clicks **Refresh data**, which calls `POST /refresh`.
 6. The API queues `run_scraper()` in the background.
 7. The scraper logs into MeroShare and upserts fresh data into Supabase.
 8. The dashboard reloads from Supabase and recalculates portfolio summaries in the browser.
+
+For ASBA IPO applications, save credentials with CRN and transaction PIN, then call `POST /refresh/asba` or run `python main.py --user-id UUID --asba`. The scraper logs into MeroShare, opens `#/asba`, and applies for every listing whose share type contains `IPO`.
 
 ## Main Files
 
@@ -61,7 +63,7 @@ The frontend does not talk to GitHub Actions. Manual refresh goes through the Fa
 
 The main tables are:
 
-- `meroshare_credentials` - one encrypted MeroShare credential row per user.
+- `meroshare_credentials` - one encrypted MeroShare credential row per user (includes optional `crn` and encrypted `transaction_pin_encrypted` for ASBA).
 - `transactions` - scraped MeroShare transaction history.
 - `purchase_sources` - scraped purchase source rows used for cost basis.
 - `scrip_ltp` - latest traded price per scrip.
@@ -128,7 +130,7 @@ npm install
 npm run dev
 ```
 
-Vite proxies `/api` and `/refresh` to `http://127.0.0.1:8000` in local development.
+Vite proxies `/api` and `/refresh` (including `/refresh/asba`) to `http://127.0.0.1:8000` in local development.
 
 ## Scraper CLI
 
@@ -150,6 +152,18 @@ Run with a visible browser for debugging:
 uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --no-headless
 ```
 
+Apply for ASBA IPO listings for one user (requires CRN and transaction PIN in credentials):
+
+```bash
+uv run python main.py --user-id 00000000-0000-0000-0000-000000000000 --asba
+```
+
+Apply for every user with saved credentials:
+
+```bash
+uv run python main.py --all-credential-users --asba
+```
+
 The scraper requires `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ENCRYPTION_KEY`.
 
 ## API Endpoints
@@ -157,8 +171,9 @@ The scraper requires `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, and `ENCRYPTION_KEY
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/health` | Health check for hosts and load balancers. |
-| `POST` | `/api/meroshare/credentials` | Saves encrypted MeroShare credentials for the signed-in user. |
+| `POST` | `/api/meroshare/credentials` | Saves encrypted MeroShare credentials (incl. CRN and transaction PIN) for the signed-in user. |
 | `POST` | `/refresh` | Starts a background scrape for the signed-in user. |
+| `POST` | `/refresh/asba` | Starts a background ASBA IPO apply for the signed-in user. |
 
 Both POST endpoints require:
 

@@ -9,7 +9,7 @@ import { apiUrl } from "../lib/apiUrl";
 import { supabase } from "../lib/supabaseClient";
 import { PasswordInput } from "./PasswordInput";
 
-type SavedRow = { username: string; dp_id: string };
+type SavedRow = { username: string; dp_id: string; crn: string };
 
 function formatFastApiDetail(detail: unknown): string {
   if (typeof detail === "string") return detail;
@@ -53,10 +53,13 @@ export function MeroshareCredentials() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [dpId, setDpId] = useState("");
+  const [crn, setCrn] = useState("");
+  const [transactionPin, setTransactionPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successFlash, setSuccessFlash] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showTransactionPin, setShowTransactionPin] = useState(false);
 
   const refreshSaved = useCallback(async () => {
     const {
@@ -71,7 +74,7 @@ export function MeroshareCredentials() {
     setLoadError(null);
     const { data, error } = await supabase
       .from("meroshare_credentials")
-      .select("username, dp_id")
+      .select("username, dp_id, crn")
       .maybeSingle();
     setLoadingRow(false);
     if (error) {
@@ -80,18 +83,26 @@ export function MeroshareCredentials() {
       return;
     }
     if (data && typeof data.username === "string" && typeof data.dp_id === "string") {
-      setSaved({ username: data.username, dp_id: data.dp_id });
+      setSaved({
+        username: data.username,
+        dp_id: data.dp_id,
+        crn: typeof data.crn === "string" ? data.crn : "",
+      });
       setUsername(data.username);
       setDpId(data.dp_id);
+      setCrn(typeof data.crn === "string" ? data.crn : "");
       setEditing(false);
     } else {
       setSaved(null);
       setEditing(true);
       setUsername("");
       setDpId("");
+      setCrn("");
     }
     setPassword("");
+    setTransactionPin("");
     setShowPassword(false);
+    setShowTransactionPin(false);
   }, []);
 
   const sessionUserId = session?.user?.id;
@@ -103,8 +114,11 @@ export function MeroshareCredentials() {
       setLoadingRow(false);
       setUsername("");
       setDpId("");
+      setCrn("");
       setPassword("");
+      setTransactionPin("");
       setShowPassword(false);
+      setShowTransactionPin(false);
       setEditing(true);
       return;
     }
@@ -132,6 +146,8 @@ export function MeroshareCredentials() {
           username: username.trim(),
           password,
           dp_id: dpId.trim(),
+          crn: crn.trim(),
+          transaction_pin: transactionPin,
         }),
       });
       const text = await res.text();
@@ -197,8 +213,11 @@ export function MeroshareCredentials() {
               setEditing(true);
               setUsername(saved.username);
               setDpId(saved.dp_id);
+              setCrn(saved.crn);
               setPassword("");
+              setTransactionPin("");
               setShowPassword(false);
+              setShowTransactionPin(false);
               setSubmitError(null);
             }}
             className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-200 transition hover:border-accent/60 hover:bg-slate-800/50"
@@ -251,6 +270,35 @@ export function MeroshareCredentials() {
               required
               placeholder="Depository Participant name as on the login page"
               className="mt-1 w-full rounded-lg border border-slate-600 bg-surface-overlay px-3 py-2 text-slate-100 outline-none ring-accent/30 focus:border-accent focus:ring-2"
+            />
+          </div>
+          <div>
+            <label htmlFor="ms-crn" className="block text-sm font-medium text-slate-300">
+              CRN
+            </label>
+            <input
+              id="ms-crn"
+              type="text"
+              autoComplete="off"
+              value={crn}
+              onChange={(e) => setCrn(e.target.value)}
+              required
+              placeholder="Citizen Registration Number for ASBA applications"
+              className="mt-1 w-full rounded-lg border border-slate-600 bg-surface-overlay px-3 py-2 text-slate-100 outline-none ring-accent/30 focus:border-accent focus:ring-2"
+            />
+          </div>
+          <div>
+            <label htmlFor="ms-pin" className="block text-sm font-medium text-slate-300">
+              Transaction PIN
+            </label>
+            <PasswordInput
+              id="ms-pin"
+              autoComplete="off"
+              value={transactionPin}
+              onChange={(e) => setTransactionPin(e.target.value)}
+              showPassword={showTransactionPin}
+              onToggleShow={() => setShowTransactionPin((s) => !s)}
+              inputClassName="w-full rounded-lg border border-slate-600 bg-surface-overlay px-3 py-2 pr-10 text-slate-100 outline-none ring-accent/30 focus:border-accent focus:ring-2"
             />
           </div>
           {submitError && (

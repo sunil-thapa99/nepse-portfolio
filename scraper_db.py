@@ -6,11 +6,11 @@ import hashlib
 import logging
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple
 
 import pandas as pd
 
-from meroshare_crypto import decrypt_password
+from meroshare_crypto import decrypt_encrypted, decrypt_password
 from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -40,11 +40,19 @@ def _dedupe_upsert_rows(rows: List[Dict[str, Any]], *, label: str) -> List[Dict[
     return out
 
 
-def fetch_meroshare_credentials(user_id: str) -> Tuple[str, str, str]:
-    """Return username, plain password, dp_id (DP name for login dropdown). Raises on missing row."""
+class MeroshareCredentials(NamedTuple):
+    username: str
+    password: str
+    dp_id: str
+    crn: Optional[str]
+    transaction_pin: Optional[str]
+
+
+def fetch_meroshare_credentials(user_id: str) -> MeroshareCredentials:
+    """Return MeroShare login and ASBA fields. Raises on missing row."""
     res = (
         supabase.table("meroshare_credentials")
-        .select("username,password_encrypted,dp_id")
+        .select("username,password_encrypted,dp_id,crn,transaction_pin_encrypted")
         .eq("user_id", user_id)
         .limit(1)
         .execute()
@@ -54,7 +62,35 @@ def fetch_meroshare_credentials(user_id: str) -> Tuple[str, str, str]:
         raise ValueError(f"No meroshare_credentials row for user_id={user_id}")
     row = rows[0]
     pwd = decrypt_password(row["password_encrypted"])
-    return (row["username"], pwd, row["dp_id"])
+    pin_enc = row.get("transaction_pin_encrypted")
+    transaction_pin = (
+        decrypt_encrypted(pin_enc) if pin_enc and str(pin_enc).strip() else None
+    )
+    crn_raw = row.get("crn")
+    crn = str(crn_raw).strip() if crn_raw and str(crn_raw).strip() else None
+    return MeroshareCredentials(
+        username=row["username"],
+        password=pwd,
+        dp_id=row["dp_id"],
+        crn=crn,
+        transaction_pin=transaction_pin,
+    )
+
+
+def fetch_meroshare_asba_credentials(user_id: str) -> MeroshareCredentials:
+    """Return credentials with required CRN and transaction PIN for ASBA apply."""
+    creds = fetch_meroshare_credentials(user_id)
+    missing = []
+    if not creds.crn:
+        missing.append("crn")
+    if not creds.transaction_pin:
+        missing.append("transaction_pin")
+    if missing:
+        raise ValueError(
+            f"Missing ASBA fields in meroshare_credentials for user_id={user_id}: "
+            + ", ".join(missing)
+        )
+    return creds
 
 
 def list_meroshare_credential_user_ids() -> List[str]:

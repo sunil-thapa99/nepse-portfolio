@@ -15,4 +15,9 @@ def fernet() -> Fernet:
 
 def decrypt_password(encrypted_ascii: str) -> str:
     """Decrypt Fernet token stored as ASCII in DB."""
+    return decrypt_encrypted(encrypted_ascii)
+
+
+def decrypt_encrypted(encrypted_ascii: str) -> str:
+    """Decrypt any Fernet token stored as ASCII in DB."""
     return fernet().decrypt(encrypted_ascii.encode("ascii")).decode("utf-8")

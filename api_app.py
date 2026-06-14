@@ -14,7 +14,7 @@ from postgrest.exceptions import APIError
 
 load_dotenv()
 
-from main import ScraperError, run_scraper
+from main import ScraperError, run_asba_apply, run_scraper
 from supabase_client import supabase
 
 logger = logging.getLogger(__name__)
@@ -185,10 +185,44 @@ def _run_scraper_background(user_id: str, job_id: str) -> None:
         )
 
 
+def _run_asba_background(user_id: str, job_id: str) -> None:
+    try:
+        run_asba_apply(
+            user_id,
+            headless=True,
+            progress_callback=lambda progress, message: update_job_progress(
+                job_id, progress, message
+            ),
+        )
+        mark_job_complete(job_id)
+        logger.info(
+            "Background ASBA apply finished successfully for user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+    except ScraperError as e:
+        mark_job_failed(job_id, str(e))
+        logger.error(
+            "Background ASBA apply failed for user_id=%s job_id=%s: %s",
+            user_id,
+            job_id,
+            e,
+        )
+    except Exception as e:
+        mark_job_failed(job_id, str(e))
+        logger.exception(
+            "Background ASBA apply crashed for user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+
+
 class MeroshareCredentialsBody(BaseModel):
     username: str = Field(..., min_length=1)
     password: str = Field(..., min_length=1)
     dp_id: str = Field(..., min_length=1)
+    crn: str = Field(..., min_length=1)
+    transaction_pin: str = Field(..., min_length=1)
 
 
 app = FastAPI(title="nepse-portfolio API")
@@ -239,6 +273,9 @@ def post_meroshare_credentials(
 
         try:
             encrypted = fernet.encrypt(body.password.encode("utf-8")).decode("ascii")
+            pin_encrypted = fernet.encrypt(
+                body.transaction_pin.encode("utf-8")
+            ).decode("ascii")
         except (ValueError, TypeError):
             raise HTTPException(
                 status_code=500,
@@ -251,6 +288,8 @@ def post_meroshare_credentials(
                 "username": body.username.strip(),
                 "password_encrypted": encrypted,
                 "dp_id": body.dp_id.strip(),
+                "crn": body.crn.strip(),
+                "transaction_pin_encrypted": pin_encrypted,
             },
             on_conflict="user_id",
         ).execute()
@@ -322,3 +361,69 @@ def post_refresh(request: Request, background_tasks: BackgroundTasks) -> dict:
     background_tasks.add_task(_run_scraper_background, user_id, job_id)
     logger.info("Queued background scraper for user_id=%s job_id=%s", user_id, job_id)
     return {"jobId": job_id, "status": "scraper started"}
+
+
+@app.post("/refresh/asba")
+def post_refresh_asba(request: Request, background_tasks: BackgroundTasks) -> dict:
+    """
+    Verify JWT, ensure MeroShare credentials include CRN and transaction PIN,
+    start ASBA IPO apply in a background thread pool. Returns immediately.
+    """
+    token = _bearer_token(request)
+    try:
+        user_id = verify_jwt_user_id(token)
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not verify token with Supabase Auth: {e!s}",
+        ) from e
+
+    cred = (
+        supabase.table("meroshare_credentials")
+        .select("user_id, crn, transaction_pin_encrypted")
+        .eq("user_id", user_id)
+        .limit(1)
+        .execute()
+    )
+    rows = cred.data or []
+    if not rows:
+        raise HTTPException(
+            status_code=400,
+            detail="Save MeroShare credentials in the dashboard before applying for ASBA.",
+        )
+    row = rows[0]
+    missing = []
+    if not (row.get("crn") or "").strip():
+        missing.append("CRN")
+    if not (row.get("transaction_pin_encrypted") or "").strip():
+        missing.append("transaction PIN")
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Save MeroShare credentials with "
+                + " and ".join(missing)
+                + " before applying for ASBA."
+            ),
+        )
+
+    try:
+        job_id = create_scrape_job(user_id)
+    except APIError as e:
+        logger.warning("scrape_jobs insert failed: %s", e.json())
+        raise HTTPException(
+            status_code=502,
+            detail=_format_postgrest_error(e),
+        ) from e
+    except Exception as e:
+        logger.exception("scrape_jobs insert failed unexpectedly")
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not create scrape job: {e!s}",
+        ) from e
+
+    background_tasks.add_task(_run_asba_background, user_id, job_id)
+    logger.info(
+        "Queued background ASBA apply for user_id=%s job_id=%s", user_id, job_id
+    )
+    return {"jobId": job_id, "status": "asba apply started"}

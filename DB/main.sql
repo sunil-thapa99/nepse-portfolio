@@ -7,6 +7,8 @@ create table meroshare_credentials (
   username text not null,
   password_encrypted text not null,
   dp_id text not null,
+  crn text,
+  transaction_pin_encrypted text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );

@@ -14,9 +14,10 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 
 import pandas as pd
 from dotenv import load_dotenv
-from playwright.async_api import Page, TimeoutError as PWTimeoutError, async_playwright
+from playwright.async_api import BrowserContext, Page, TimeoutError as PWTimeoutError, async_playwright
 
 from scraper_db import (
+    fetch_meroshare_asba_credentials,
     fetch_meroshare_credentials,
     finalized_purchase_rows_to_payload,
     list_meroshare_credential_user_ids,
@@ -68,7 +69,8 @@ async def login_meroshare(
     after_login:
         "transaction" — open My Transaction History (default).
         "purchase" — open My Purchase Source (#/purchase).
-        "dashboard" — stay on post-login home (no extra navigation).
+        "portfolio" — stay on post-login home (no extra navigation).
+        "asba" — open ASBA (#/asba).
     """
     # SPA: "domcontentloaded" is often too early; "load" + attached-state waits
     # match Selenium's presence_of_element_located (DOM present, not necessarily visible yet).
@@ -159,11 +161,159 @@ async def login_meroshare(
         elif after_login == "portfolio":
             await page.goto(f"{MEROSHARE_URL}#/portfolio", wait_until="domcontentloaded")
             await asyncio.sleep(3)
+        elif after_login == "asba":
+            await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+            await asyncio.sleep(3)
         return True
 
     except Exception as e:
         logger.error("[error] Login error: %s", e)
         return False
+
+
+async def _fill_asba_application_form(
+    form_page: Page,
+    *,
+    crn: str,
+    transaction_pin: str,
+    applied_kitta: int,
+) -> None:
+    await form_page.wait_for_selector("#selectBank", timeout=30_000)
+    await form_page.select_option("#selectBank", index=1)
+    await form_page.select_option("#accountNumber", index=1)
+    await form_page.fill("#appliedKitta", str(applied_kitta))
+    await form_page.fill("[name='crnNumber']", crn)
+    await form_page.check("[name='disclaimer']")
+    await form_page.locator("button[type='submit']").first.click()
+    await form_page.wait_for_load_state("domcontentloaded")
+    await form_page.fill("[name='transactionPIN']", transaction_pin)
+    await form_page.locator("button[type='submit']").first.click()
+    await form_page.wait_for_load_state("domcontentloaded")
+
+
+async def apply_asba_ipo_listings(
+    page: Page,
+    context: BrowserContext,
+    *,
+    crn: str,
+    transaction_pin: str,
+    applied_kitta: int = 20,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> int:
+    """Apply for every IPO listing on the ASBA page. Returns count of applications submitted."""
+    if "asba" not in page.url.lower():
+        await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+        await asyncio.sleep(2)
+
+    company_list = page.locator(".company-list")
+    try:
+        await company_list.first.wait_for(state="attached", timeout=15_000)
+    except PWTimeoutError:
+        logger.info("[info] No ASBA company list found")
+        return 0
+
+    if await company_list.count() == 0:
+        logger.info("[info] No ASBA company list found")
+        return 0
+
+    listings = company_list.locator(
+        ":scope > *, .company-item, li, tr, .card, [class*='company']"
+    )
+    listing_count = await listings.count()
+    if listing_count == 0:
+        listings = company_list.locator("*").filter(
+            has=page.locator(".share-of-type")
+        )
+        listing_count = await listings.count()
+
+    logger.info("[info] ASBA company list: found %s listing(s)", listing_count)
+    if listing_count == 0:
+        return 0
+
+    applied = 0
+    ipo_total = 0
+    for i in range(listing_count):
+        listing = listings.nth(i)
+        share_type = listing.locator(".share-of-type").first
+        if await share_type.count() == 0:
+            continue
+        share_text = (await share_type.inner_text()).strip()
+        if "IPO" not in share_text.upper():
+            continue
+        ipo_total += 1
+
+    if ipo_total == 0:
+        logger.info("[info] No IPO listings found on ASBA page")
+        return 0
+
+    processed = 0
+    for i in range(listing_count):
+        if "asba" not in page.url.lower():
+            await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+            await asyncio.sleep(2)
+            listings = company_list.locator(
+                ":scope > *, .company-item, li, tr, .card, [class*='company']"
+            )
+            if await listings.count() == 0:
+                listings = company_list.locator("*").filter(
+                    has=page.locator(".share-of-type")
+                )
+
+        listing = listings.nth(i)
+        share_type = listing.locator(".share-of-type").first
+        if await share_type.count() == 0:
+            continue
+        share_text = (await share_type.inner_text()).strip()
+        if "IPO" not in share_text.upper():
+            continue
+
+        processed += 1
+        _emit_progress(
+            progress_callback,
+            40 + int(processed * 50 / max(ipo_total, 1)),
+            f"Applying for IPO listing {processed}/{ipo_total}",
+        )
+        logger.info(
+            "[info] ASBA IPO apply %s/%s (share type: %s)",
+            processed,
+            ipo_total,
+            share_text,
+        )
+
+        apply_btn = listing.get_by_role("button", name="Apply")
+        if await apply_btn.count() == 0:
+            apply_btn = listing.locator(
+                "xpath=.//button[contains(normalize-space(.), 'Apply')]"
+            ).first
+
+        try:
+            async with context.expect_page(timeout=30_000) as page_info:
+                await apply_btn.click()
+            form_page = await page_info.value
+        except PWTimeoutError:
+            logger.warning(
+                "[warn] Apply click did not open a new page for listing %s", i + 1
+            )
+            continue
+
+        try:
+            await form_page.wait_for_load_state("domcontentloaded")
+            await _fill_asba_application_form(
+                form_page,
+                crn=crn,
+                transaction_pin=transaction_pin,
+                applied_kitta=applied_kitta,
+            )
+            applied += 1
+            logger.info("[info] ASBA IPO application submitted (%s/%s)", applied, ipo_total)
+        except Exception as e:
+            logger.warning("[warn] ASBA IPO apply failed for listing %s: %s", i + 1, e)
+        finally:
+            if not form_page.is_closed():
+                await form_page.close()
+            await asyncio.sleep(1)
+
+    return applied
 
 
 async def scrape_transactions(
@@ -744,7 +894,7 @@ async def async_run_scraper(
     """
     _emit_progress(progress_callback, 5, "Starting scraper")
     try:
-        username, password, dp = fetch_meroshare_credentials(user_id)
+        creds = fetch_meroshare_credentials(user_id)
     except ValueError as e:
         raise ScraperError(str(e)) from e
     except Exception as e:
@@ -776,7 +926,7 @@ async def async_run_scraper(
             page = await context.new_page()
             try:
                 _emit_progress(progress_callback, 20, "Logging into MeroShare")
-                logger.info("[info] Logging into MeroShare with DP: %s", dp)
+                logger.info("[info] Logging into MeroShare with DP: %s", creds.dp_id)
                 scraped_at = (
                     dt.datetime.now(dt.timezone.utc)
                     .astimezone()
@@ -785,7 +935,11 @@ async def async_run_scraper(
                 uid = user_id
 
                 if not await login_meroshare(
-                    page, username, password, dp, after_login="transaction"
+                    page,
+                    creds.username,
+                    creds.password,
+                    creds.dp_id,
+                    after_login="transaction",
                 ):
                     raise ScraperError("Login failed")
                 logger.info("[info] Login successful, scraping transactions...")
@@ -895,6 +1049,95 @@ async def async_run_scraper(
         shutil.rmtree(tmp_download, ignore_errors=True)
 
 
+async def async_run_asba_apply(
+    user_id: str,
+    *,
+    headless: bool = True,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> None:
+    """
+    Load credentials for user_id, log into MeroShare, and apply for IPO listings on ASBA.
+    Raises ScraperError on expected failures.
+    """
+    _emit_progress(progress_callback, 5, "Starting ASBA apply")
+    try:
+        creds = fetch_meroshare_asba_credentials(user_id)
+    except ValueError as e:
+        raise ScraperError(str(e)) from e
+    except Exception as e:
+        raise ScraperError(
+            "Could not load or decrypt credentials (check ENCRYPTION_KEY, Supabase env): "
+            f"{e}"
+        ) from e
+
+    try:
+        async with async_playwright() as p:
+            _emit_progress(progress_callback, 10, "Launching browser")
+            launch_kwargs = {
+                "headless": headless,
+                "args": ["--no-sandbox", "--disable-dev-shm-usage"],
+            }
+            chrome_bin = os.environ.get("CHROME_BIN", "").strip()
+            if chrome_bin:
+                launch_kwargs["executable_path"] = chrome_bin
+
+            browser = await p.chromium.launch(**launch_kwargs)
+            context = await browser.new_context(
+                accept_downloads=True,
+                user_agent=MEROSHARE_USER_AGENT,
+                viewport={"width": 1200, "height": 1200},
+                ignore_https_errors=True,
+            )
+            page = await context.new_page()
+            try:
+                _emit_progress(progress_callback, 20, "Logging into MeroShare")
+                logger.info("[info] Logging into MeroShare with DP: %s", creds.dp_id)
+                if not await login_meroshare(
+                    page,
+                    creds.username,
+                    creds.password,
+                    creds.dp_id,
+                    after_login="asba",
+                ):
+                    raise ScraperError("Login failed")
+                logger.info("[info] Login successful, scanning ASBA listings...")
+                _emit_progress(progress_callback, 35, "Scanning ASBA IPO listings")
+                applied = await apply_asba_ipo_listings(
+                    page,
+                    context,
+                    crn=creds.crn or "",
+                    transaction_pin=creds.transaction_pin or "",
+                    progress_callback=progress_callback,
+                )
+                logger.info("[info] ASBA apply finished: %s application(s) submitted", applied)
+                _emit_progress(
+                    progress_callback,
+                    100,
+                    f"Completed ({applied} IPO application(s) submitted)",
+                )
+            finally:
+                await browser.close()
+    except ScraperError:
+        raise
+    except Exception as e:
+        raise ScraperError(f"ASBA apply failed: {e}") from e
+
+
+def run_asba_apply(
+    user_id: str,
+    *,
+    headless: bool = True,
+    progress_callback: Optional[ProgressCallback] = None,
+) -> None:
+    asyncio.run(
+        async_run_asba_apply(
+            user_id,
+            headless=headless,
+            progress_callback=progress_callback,
+        )
+    )
+
+
 def run_scraper(
     user_id: str,
     *,
@@ -937,6 +1180,11 @@ def main():
         action="store_true",
         help="Run Chrome in visible mode",
     )
+    parser.add_argument(
+        "--asba",
+        action="store_true",
+        help="Apply for IPO listings on MeroShare ASBA instead of scraping transactions",
+    )
 
     args = parser.parse_args()
 
@@ -948,19 +1196,22 @@ def main():
     )
 
     headless = not args.no_headless
+    runner = run_asba_apply if args.asba else run_scraper
+    task_label = "ASBA apply" if args.asba else "scrape"
 
     if args.all_credential_users:
         user_ids = list_meroshare_credential_user_ids()
         if not user_ids:
             logger.info(
-                "[info] No rows in meroshare_credentials; nothing to scrape (exit 0)"
+                "[info] No rows in meroshare_credentials; nothing to %s (exit 0)",
+                task_label,
             )
             return
         failed = 0
         for uid in user_ids:
-            logger.info("[info] Starting scrape for user_id=%s", uid)
+            logger.info("[info] Starting %s for user_id=%s", task_label, uid)
             try:
-                run_scraper(uid, headless=headless)
+                runner(uid, headless=headless)
             except ScraperError as e:
                 logger.error("[error] user_id=%s: %s", uid, e)
                 failed += 1
@@ -977,7 +1228,7 @@ def main():
         return
 
     try:
-        run_scraper(args.user_id, headless=headless)
+        runner(args.user_id, headless=headless)
     except ScraperError as e:
         logger.error("[error] %s", e)
         sys.exit(1)
