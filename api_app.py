@@ -219,10 +219,10 @@ def _run_asba_background(user_id: str, job_id: str) -> None:
 
 class MeroshareCredentialsBody(BaseModel):
     username: str = Field(..., min_length=1)
-    password: str = Field(..., min_length=1)
+    password: str | None = None
     dp_id: str = Field(..., min_length=1)
     crn: str = Field(..., min_length=1)
-    transaction_pin: str = Field(..., min_length=1)
+    transaction_pin: str | None = None
 
 
 app = FastAPI(title="nepse-portfolio API")
@@ -271,11 +271,52 @@ def post_meroshare_credentials(
                 detail="Invalid or missing ENCRYPTION_KEY in API environment",
             ) from None
 
+        existing_res = (
+            supabase.table("meroshare_credentials")
+            .select("password_encrypted, transaction_pin_encrypted")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        existing = existing_res.data if existing_res.data else None
+
+        pw = (body.password or "").strip()
+        pin = (body.transaction_pin or "").strip()
+
+        if not existing:
+            if not pw:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Password is required when saving credentials for the first time",
+                )
+            if not pin:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Transaction PIN is required when saving credentials for the first time",
+                )
+
         try:
-            encrypted = fernet.encrypt(body.password.encode("utf-8")).decode("ascii")
-            pin_encrypted = fernet.encrypt(
-                body.transaction_pin.encode("utf-8")
-            ).decode("ascii")
+            if pw:
+                password_encrypted = fernet.encrypt(pw.encode("utf-8")).decode("ascii")
+            elif existing:
+                password_encrypted = existing["password_encrypted"]
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Password is required when saving credentials for the first time",
+                )
+
+            if pin:
+                pin_encrypted = fernet.encrypt(pin.encode("utf-8")).decode("ascii")
+            elif existing:
+                pin_encrypted = existing.get("transaction_pin_encrypted")
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Transaction PIN is required when saving credentials for the first time",
+                )
+        except HTTPException:
+            raise
         except (ValueError, TypeError):
             raise HTTPException(
                 status_code=500,
@@ -286,7 +327,7 @@ def post_meroshare_credentials(
             {
                 "user_id": user_id,
                 "username": body.username.strip(),
-                "password_encrypted": encrypted,
+                "password_encrypted": password_encrypted,
                 "dp_id": body.dp_id.strip(),
                 "crn": body.crn.strip(),
                 "transaction_pin_encrypted": pin_encrypted,

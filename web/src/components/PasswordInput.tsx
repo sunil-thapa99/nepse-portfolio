@@ -9,6 +9,8 @@ export type PasswordInputProps = {
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   minLength?: number;
+  required?: boolean;
+  placeholder?: string;
   showPassword: boolean;
   onToggleShow: () => void;
   /** When set, replaces the default auth-page input styles (e.g. dashboard forms). */
@@ -21,6 +23,8 @@ export function PasswordInput({
   value,
   onChange,
   minLength,
+  required = true,
+  placeholder,
   showPassword,
   onToggleShow,
   inputClassName,
@@ -32,11 +36,12 @@ export function PasswordInput({
         id={id}
         type={showPassword ? "text" : "password"}
         autoComplete={autoComplete}
-        required
+        required={required}
         value={value}
         onChange={onChange}
         className={inputClass}
         {...(minLength !== undefined ? { minLength } : {})}
+        {...(placeholder !== undefined ? { placeholder } : {})}
       />
       <button
         type="button"

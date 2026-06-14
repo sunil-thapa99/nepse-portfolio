@@ -126,6 +126,7 @@ export function MeroshareCredentials() {
   }, [authLoading, sessionUserId, refreshSaved]);
 
   const showForm = !saved || editing;
+  const isFirstSave = !saved;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -134,21 +135,31 @@ export function MeroshareCredentials() {
       setSubmitError("Not signed in.");
       return;
     }
+    if (isFirstSave && !password.trim()) {
+      setSubmitError("Password is required when saving credentials for the first time.");
+      return;
+    }
+    if (isFirstSave && !transactionPin.trim()) {
+      setSubmitError("Transaction PIN is required when saving credentials for the first time.");
+      return;
+    }
     setSubmitting(true);
     try {
+      const body: Record<string, string> = {
+        username: username.trim(),
+        dp_id: dpId.trim(),
+        crn: crn.trim(),
+      };
+      if (password.trim()) body.password = password;
+      if (transactionPin.trim()) body.transaction_pin = transactionPin;
+
       const res = await fetch(apiUrl("/api/meroshare/credentials"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          username: username.trim(),
-          password,
-          dp_id: dpId.trim(),
-          crn: crn.trim(),
-          transaction_pin: transactionPin,
-        }),
+        body: JSON.stringify(body),
       });
       const text = await res.text();
       if (!res.ok) {
@@ -252,6 +263,8 @@ export function MeroshareCredentials() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required={isFirstSave}
+              placeholder={isFirstSave ? undefined : "Leave blank to keep existing"}
               showPassword={showPassword}
               onToggleShow={() => setShowPassword((s) => !s)}
               inputClassName="w-full rounded-lg border border-slate-600 bg-surface-overlay px-3 py-2 pr-10 text-slate-100 outline-none ring-accent/30 focus:border-accent focus:ring-2"
@@ -296,6 +309,8 @@ export function MeroshareCredentials() {
               autoComplete="off"
               value={transactionPin}
               onChange={(e) => setTransactionPin(e.target.value)}
+              required={isFirstSave}
+              placeholder={isFirstSave ? undefined : "Leave blank to keep existing"}
               showPassword={showTransactionPin}
               onToggleShow={() => setShowTransactionPin((s) => !s)}
               inputClassName="w-full rounded-lg border border-slate-600 bg-surface-overlay px-3 py-2 pr-10 text-slate-100 outline-none ring-accent/30 focus:border-accent focus:ring-2"
