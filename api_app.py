@@ -278,7 +278,7 @@ def post_meroshare_credentials(
             .maybe_single()
             .execute()
         )
-        existing = existing_res.data if existing_res.data else None
+        existing = existing_res.data if existing_res else None
 
         pw = (body.password or "").strip()
         pin = (body.transaction_pin or "").strip()
