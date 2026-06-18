@@ -181,6 +181,55 @@ async def login_meroshare(
         return False
 
 
+async def _wait_for_asba_apply_form(page: Page) -> None:
+    """Wait for in-page SPA navigation to the ASBA apply form."""
+    await page.wait_for_url(re.compile(r".*#/asba/apply/.*"), timeout=30_000)
+    await page.wait_for_selector("#selectBank", timeout=30_000)
+
+
+async def _click_asba_apply_and_get_form_page(
+    page: Page,
+    context: BrowserContext,
+    apply_btn,
+) -> Tuple[Page, bool]:
+    """
+    Click Apply and return (page with the form, is_new_tab).
+    MeroShare usually navigates in-page to #/asba/apply/<id>; older flows may open a tab.
+    """
+    new_page_task = asyncio.create_task(context.wait_for_event("page"))
+    form_task = asyncio.create_task(_wait_for_asba_apply_form(page))
+
+    await apply_btn.click()
+
+    done, pending = await asyncio.wait(
+        [new_page_task, form_task],
+        return_when=asyncio.FIRST_COMPLETED,
+        timeout=30,
+    )
+    for task in pending:
+        task.cancel()
+        try:
+            await task
+        except (asyncio.CancelledError, PWTimeoutError):
+            pass
+
+    if not done:
+        raise PWTimeoutError("Apply click did not open apply form")
+
+    if new_page_task in done:
+        exc = new_page_task.exception()
+        if exc is not None:
+            raise exc
+        new_page = new_page_task.result()
+        await new_page.wait_for_load_state("domcontentloaded")
+        return new_page, True
+
+    exc = form_task.exception()
+    if exc is not None:
+        raise exc
+    return page, False
+
+
 async def _fill_asba_application_form(
     form_page: Page,
     *,
@@ -297,17 +346,16 @@ async def apply_asba_ipo_listings(
             ).first
 
         try:
-            async with context.expect_page(timeout=30_000) as page_info:
-                await apply_btn.click()
-            form_page = await page_info.value
+            form_page, is_new_tab = await _click_asba_apply_and_get_form_page(
+                page, context, apply_btn
+            )
         except PWTimeoutError:
             logger.warning(
-                "[warn] Apply click did not open a new page for listing %s", i + 1
+                "[warn] Apply click did not open apply form for listing %s", i + 1
             )
             continue
 
         try:
-            await form_page.wait_for_load_state("domcontentloaded")
             await _fill_asba_application_form(
                 form_page,
                 crn=crn,
@@ -319,9 +367,13 @@ async def apply_asba_ipo_listings(
         except Exception as e:
             logger.warning("[warn] ASBA IPO apply failed for listing %s: %s", i + 1, e)
         finally:
-            if not form_page.is_closed():
+            if is_new_tab and not form_page.is_closed():
                 await form_page.close()
-            await asyncio.sleep(1)
+            elif not is_new_tab:
+                await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+                await asyncio.sleep(1)
+            else:
+                await asyncio.sleep(1)
 
     return applied
 
