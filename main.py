@@ -47,6 +47,16 @@ def _emit_progress(
     except Exception:
         logger.exception("Progress callback failed at %s%%: %s", progress, message)
 
+
+def _asba_progress_after_scrape(
+    progress_callback: Optional[ProgressCallback],
+    asba_progress: int,
+    message: str,
+) -> None:
+    """Map ASBA apply progress (roughly 40–100) onto 90–100 after a completed scrape."""
+    mapped = 90 + int(max(0, min(100, asba_progress) - 40) * 10 / 60)
+    _emit_progress(progress_callback, min(mapped, 100), message)
+
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
 
@@ -1042,6 +1052,40 @@ async def async_run_scraper(
                         f"; ltp {lr} scraped → {lu} upserted"
                     )
                 logger.info("%s", summary)
+
+                if creds.crn and creds.transaction_pin:
+                    _emit_progress(
+                        progress_callback, 95, "Applying for ASBA IPO listings"
+                    )
+                    try:
+                        applied = await apply_asba_ipo_listings(
+                            page,
+                            context,
+                            crn=creds.crn,
+                            transaction_pin=creds.transaction_pin,
+                            progress_callback=(
+                                (lambda p, m: _asba_progress_after_scrape(
+                                    progress_callback, p, m
+                                ))
+                                if progress_callback
+                                else None
+                            ),
+                        )
+                        logger.info(
+                            "[info] ASBA apply after scrape: %s application(s) submitted",
+                            applied,
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            "[warn] ASBA apply after scrape failed (scrape data saved): %s",
+                            e,
+                        )
+                else:
+                    logger.info(
+                        "[info] Skipping ASBA apply after scrape: "
+                        "save CRN and transaction PIN in meroshare_credentials"
+                    )
+
                 _emit_progress(progress_callback, 100, "Completed")
             finally:
                 await browser.close()

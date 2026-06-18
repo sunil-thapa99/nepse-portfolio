@@ -360,7 +360,8 @@ def _bearer_token(request: Request) -> str:
 def post_refresh(request: Request, background_tasks: BackgroundTasks) -> dict:
     """
     Verify JWT, ensure MeroShare credentials exist, start Playwright scraper in a
-    background thread pool. Returns immediately.
+    background thread pool. After transactions are scraped, also applies for ASBA IPO
+    listings when CRN and transaction PIN are saved. Returns immediately.
     """
     token = _bearer_token(request)
     try:

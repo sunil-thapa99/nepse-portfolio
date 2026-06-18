@@ -8,3 +8,5 @@ __pycache__/
 web/dist/
 web/node_modules/
 build/
+
+graphify-out/

@@ -43,7 +43,7 @@ The frontend does not talk to GitHub Actions. Manual refresh goes through the Fa
 7. The scraper logs into MeroShare and upserts fresh data into Supabase.
 8. The dashboard reloads from Supabase and recalculates portfolio summaries in the browser.
 
-For ASBA IPO applications, save credentials with CRN and transaction PIN, then call `POST /refresh/asba` or run `python main.py --user-id UUID --asba`. The scraper logs into MeroShare, opens `#/asba`, and applies for every listing whose share type contains `IPO`.
+After each transaction scrape (manual refresh, scheduled workflow, or CLI), the scraper also applies for ASBA IPO listings when CRN and transaction PIN are saved in `meroshare_credentials`. It opens `#/asba` and applies for every listing whose share type contains `IPO`. Use `POST /refresh/asba` or `python main.py --user-id UUID --asba` to run ASBA only without scraping transactions.
 
 ## Main Files
 
@@ -242,7 +242,7 @@ Also configure Supabase Auth URL settings:
 
 ## Scheduled Scraping
 
-`.github/workflows/meroshare-scrape.yml` runs:
+`.github/workflows/meroshare-scrape.yml` runs once per day at **13:00 UTC** (`cron: "0 13 * * *"` — about 08:00 US Eastern in winter, 09:00 during daylight time). It can also be started manually from the Actions tab (`workflow_dispatch`).
 
 ```bash
 python main.py --all-credential-users
