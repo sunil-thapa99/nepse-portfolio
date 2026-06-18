@@ -59,6 +59,7 @@ def _asba_progress_after_scrape(
 
 # Default MeroShare URL (adjust if needed)
 MEROSHARE_URL = "https://meroshare.cdsc.com.np/"
+_ASBA_FORM_STEP_DELAY = 2
 
 MEROSHARE_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -181,6 +182,27 @@ async def login_meroshare(
         return False
 
 
+async def _click_locator(locator, *, timeout: float = 30_000) -> None:
+    """Click a MeroShare/Angular control; fall back to JS click if actionability fails."""
+    await locator.wait_for(state="visible", timeout=timeout)
+    await locator.scroll_into_view_if_needed(timeout=timeout)
+    await asyncio.sleep(0.2)
+    try:
+        await locator.click(timeout=5_000)
+    except PWTimeoutError:
+        await locator.evaluate("el => el.click()")
+
+
+async def _ensure_asba_list_page(page: Page) -> None:
+    """Navigate to the ASBA listing index when on an apply sub-route or another page."""
+    if re.search(r"#/asba/apply/", page.url, re.I):
+        await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+        await asyncio.sleep(2)
+    elif "#/asba" not in page.url.lower():
+        await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
+        await asyncio.sleep(2)
+
+
 async def _wait_for_asba_apply_form(page: Page) -> None:
     """Wait for in-page SPA navigation to the ASBA apply form."""
     await page.wait_for_url(re.compile(r".*#/asba/apply/.*"), timeout=30_000)
@@ -199,7 +221,7 @@ async def _click_asba_apply_and_get_form_page(
     new_page_task = asyncio.create_task(context.wait_for_event("page"))
     form_task = asyncio.create_task(_wait_for_asba_apply_form(page))
 
-    await apply_btn.click()
+    await _click_locator(apply_btn)
 
     done, pending = await asyncio.wait(
         [new_page_task, form_task],
@@ -237,16 +259,57 @@ async def _fill_asba_application_form(
     transaction_pin: str,
     applied_kitta: int,
 ) -> None:
+    delay = _ASBA_FORM_STEP_DELAY
+
     await form_page.wait_for_selector("#selectBank", timeout=30_000)
+    await asyncio.sleep(delay)
     await form_page.select_option("#selectBank", index=1)
+    await asyncio.sleep(delay)
     await form_page.select_option("#accountNumber", index=1)
+    await asyncio.sleep(delay)
     await form_page.fill("#appliedKitta", str(applied_kitta))
+    await asyncio.sleep(delay)
     await form_page.fill("[name='crnNumber']", crn)
-    await form_page.check("[name='disclaimer']")
-    await form_page.locator("button[type='submit']").first.click()
+    await asyncio.sleep(delay)
+
+    disclaimer = form_page.locator("#disclaimer")
+    await disclaimer.wait_for(state="visible", timeout=30_000)
+    if not await disclaimer.is_checked():
+        await _click_locator(disclaimer)
+    await form_page.wait_for_function(
+        "() => document.querySelector('#disclaimer')?.checked === true",
+        timeout=10_000,
+    )
+    await asyncio.sleep(delay)
+
+    proceed_btn = form_page.locator(
+        "button.btn-primary[type='submit']:has(span:text-is('Proceed'))"
+    )
+    await form_page.wait_for_selector(
+        "button.btn-primary[type='submit']:not([disabled]):has(span:text-is('Proceed'))",
+        timeout=30_000,
+    )
+    await asyncio.sleep(delay)
+    await _click_locator(proceed_btn)
     await form_page.wait_for_load_state("domcontentloaded")
-    await form_page.fill("[name='transactionPIN']", transaction_pin)
-    await form_page.locator("button[type='submit']").first.click()
+
+    pin_input = form_page.locator("#transactionPIN, [name='transactionPIN']")
+    await pin_input.wait_for(state="visible", timeout=30_000)
+    await asyncio.sleep(delay)
+    await pin_input.fill(transaction_pin)
+    await pin_input.dispatch_event("input")
+    await pin_input.dispatch_event("change")
+    await asyncio.sleep(delay)
+
+    apply_btn = form_page.locator(
+        "div.confirm-page-btn button.btn-primary[type='submit']:has(span:text-is('Apply '))"
+    )
+    await form_page.wait_for_selector(
+        "div.confirm-page-btn button.btn-primary[type='submit']:not([disabled]):has(span:text-is('Apply '))",
+        timeout=30_000,
+    )
+    await asyncio.sleep(delay)
+    await _click_locator(apply_btn)
     await form_page.wait_for_load_state("domcontentloaded")
 
 
@@ -260,30 +323,19 @@ async def apply_asba_ipo_listings(
     progress_callback: Optional[ProgressCallback] = None,
 ) -> int:
     """Apply for every IPO listing on the ASBA page. Returns count of applications submitted."""
-    if "asba" not in page.url.lower():
-        await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
-        await asyncio.sleep(2)
+    await _ensure_asba_list_page(page)
 
-    company_list = page.locator(".company-list")
+    listings = page.locator(".company-list")
     try:
-        await company_list.first.wait_for(state="attached", timeout=15_000)
+        await listings.first.wait_for(state="attached", timeout=15_000)
     except PWTimeoutError:
         logger.info("[info] No ASBA company list found")
         return 0
 
-    if await company_list.count() == 0:
-        logger.info("[info] No ASBA company list found")
-        return 0
-
-    listings = company_list.locator(
-        ":scope > *, .company-item, li, tr, .card, [class*='company']"
-    )
     listing_count = await listings.count()
     if listing_count == 0:
-        listings = company_list.locator("*").filter(
-            has=page.locator(".share-of-type")
-        )
-        listing_count = await listings.count()
+        logger.info("[info] No ASBA company list found")
+        return 0
 
     logger.info("[info] ASBA company list: found %s listing(s)", listing_count)
     if listing_count == 0:
@@ -307,16 +359,10 @@ async def apply_asba_ipo_listings(
 
     processed = 0
     for i in range(listing_count):
-        if "asba" not in page.url.lower():
-            await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
-            await asyncio.sleep(2)
-            listings = company_list.locator(
-                ":scope > *, .company-item, li, tr, .card, [class*='company']"
-            )
-            if await listings.count() == 0:
-                listings = company_list.locator("*").filter(
-                    has=page.locator(".share-of-type")
-                )
+        await _ensure_asba_list_page(page)
+        listings = page.locator(".company-list")
+        if i >= await listings.count():
+            break
 
         listing = listings.nth(i)
         share_type = listing.locator(".share-of-type").first
@@ -339,11 +385,16 @@ async def apply_asba_ipo_listings(
             share_text,
         )
 
-        apply_btn = listing.get_by_role("button", name="Apply")
+        apply_btn = listing.locator("button.btn-issue").first
         if await apply_btn.count() == 0:
-            apply_btn = listing.locator(
-                "xpath=.//button[contains(normalize-space(.), 'Apply')]"
-            ).first
+            apply_btn = listing.locator("button:has(i:text-is('Apply'))").first
+        if await apply_btn.count() == 0:
+            apply_btn = listing.get_by_role("button", name="Apply").first
+        if await apply_btn.count() == 0:
+            logger.warning(
+                "[warn] No Apply button found for listing %s (%s)", i + 1, share_text
+            )
+            continue
 
         try:
             form_page, is_new_tab = await _click_asba_apply_and_get_form_page(
@@ -370,8 +421,7 @@ async def apply_asba_ipo_listings(
             if is_new_tab and not form_page.is_closed():
                 await form_page.close()
             elif not is_new_tab:
-                await page.goto(f"{MEROSHARE_URL}#/asba", wait_until="domcontentloaded")
-                await asyncio.sleep(1)
+                await _ensure_asba_list_page(page)
             else:
                 await asyncio.sleep(1)
 
