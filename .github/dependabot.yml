@@ -9,3 +9,11 @@ updates:
       directory: /web
       schedule:
           interval: weekly
+      groups:
+          react:
+              patterns:
+                  - "react"
+                  - "react-dom"
+                  - "@types/react"
+                  - "@types/react-dom"
+                  - "@vitejs/plugin-react"
