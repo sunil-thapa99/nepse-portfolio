@@ -105,13 +105,13 @@
     "semantic_hash": "fe43a35d6f233723f28728a55ebb8959"
   },
   "api_app.py": {
-    "mtime": 1781469850.4988387,
-    "ast_hash": "c7c2178d098834924327d04ba1983595",
+    "mtime": 1781741126.3943405,
+    "ast_hash": "29767c982c9dafdfd59dcd02708a2332",
     "semantic_hash": ""
   },
   "main.py": {
-    "mtime": 1781469280.1365333,
-    "ast_hash": "46e564a49e3c55a34a793f7777f249a8",
+    "mtime": 1781802401.9461195,
+    "ast_hash": "fdce37f56e21041c61566432cdeb23eb",
     "semantic_hash": ""
   },
   "meroshare_crypto.py": {
@@ -135,9 +135,9 @@
     "semantic_hash": "7b14823cbfdb63a79fdd430b73e512d0"
   },
   "web/package.json": {
-    "mtime": 1779910528.3338017,
-    "ast_hash": "e89ea38df174a94725009312116bfe81",
-    "semantic_hash": "e89ea38df174a94725009312116bfe81"
+    "mtime": 1781902134.8346405,
+    "ast_hash": "6514c6aaea556d5664487b5b6b647acf",
+    "semantic_hash": ""
   },
   "web/postcss.config.js": {
     "mtime": 1774674533.7719843,
@@ -145,7 +145,7 @@
     "semantic_hash": "c735540bb63936a123bc867d950c9f69"
   },
   "web/src/App.tsx": {
-    "mtime": 1781468535.7854714,
+    "mtime": 1781625438.0818512,
     "ast_hash": "cf5bb133160d0f35c5b3b3ccd90513e5",
     "semantic_hash": "cf5bb133160d0f35c5b3b3ccd90513e5"
   },
@@ -155,7 +155,7 @@
     "semantic_hash": "0768ac29db645f6caaa6c8909436ac90"
   },
   "web/src/components/HoldingsTable.tsx": {
-    "mtime": 1781468535.7948942,
+    "mtime": 1781625438.1001635,
     "ast_hash": "0ab2c0068fa04f9872c13b38b469c9e9",
     "semantic_hash": "0ab2c0068fa04f9872c13b38b469c9e9"
   },
@@ -190,7 +190,7 @@
     "semantic_hash": "129b6b33dfa353d42cd8f786e609aefb"
   },
   "web/src/components/StockDetail.tsx": {
-    "mtime": 1781468535.7852511,
+    "mtime": 1781625438.099812,
     "ast_hash": "30d3d0354ff392810a9b0cf8ffea22b9",
     "semantic_hash": "30d3d0354ff392810a9b0cf8ffea22b9"
   },
@@ -280,7 +280,7 @@
     "semantic_hash": "33a49fbd7278fa80d801244f14f6602b"
   },
   "web/src/lib/types.ts": {
-    "mtime": 1781468535.7852957,
+    "mtime": 1781625438.0999713,
     "ast_hash": "c1359159dc396c8346c5bec923576002",
     "semantic_hash": "c1359159dc396c8346c5bec923576002"
   },
@@ -325,7 +325,7 @@
     "semantic_hash": "3ce034f37a6661efc8073a99b87d2c87"
   },
   "web/vite.config.ts": {
-    "mtime": 1781468535.7852957,
+    "mtime": 1781625438.0999634,
     "ast_hash": "bd79a9c0f5cb8ae002add2aac0c542ae",
     "semantic_hash": "bd79a9c0f5cb8ae002add2aac0c542ae"
   },
@@ -335,9 +335,9 @@
     "semantic_hash": "6bf2fe2fe381c21fb30b393f744df757"
   },
   ".github/dependabot.yml": {
-    "mtime": 1775246116.6950648,
-    "ast_hash": "191c2b71fd37f3da33d1ed2725c67773",
-    "semantic_hash": "191c2b71fd37f3da33d1ed2725c67773"
+    "mtime": 1781902115.8087988,
+    "ast_hash": "10b047c2c31fcc158514edc41a5c832e",
+    "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
     "mtime": 1775245176.8366215,
@@ -350,8 +350,8 @@
     "semantic_hash": "21df4cf76bf11e9f88b1a4fec9eb1096"
   },
   "README.md": {
-    "mtime": 1781469286.325055,
-    "ast_hash": "16265360763a3a59583493c1f2ae5929",
+    "mtime": 1781741125.7530696,
+    "ast_hash": "e7f81e1ccbda4fb8f98bb41d437bb795",
     "semantic_hash": ""
   },
   "render.yaml": {
@@ -377,6 +377,16 @@
   "CLAUDE.md": {
     "mtime": 1781467692.3929744,
     "ast_hash": "82efb97a359f5c7290bf2513d14686be",
+    "semantic_hash": ""
+  },
+  "pyproject.toml": {
+    "mtime": 1775336199.5200982,
+    "ast_hash": "18f998c1228ab5f8d17fe02576f18b90",
+    "semantic_hash": ""
+  },
+  "RUNBOOK.md": {
+    "mtime": 1787704683.290664,
+    "ast_hash": "82687f230dfb8e898cae91fe7e23c3e3",
     "semantic_hash": ""
   }
 }

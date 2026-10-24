@@ -8,5 +8,7 @@ __pycache__/
 web/dist/
 web/node_modules/
 build/
+.DS_Store
 
 graphify-out/
+graphify-out/cache/
