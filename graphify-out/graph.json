@@ -161,8 +161,8 @@
     {
       "label": "APIError",
       "file_type": "code",
-      "source_file": "api_app.py",
-      "source_location": "L61",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "apierror",
       "community": 6,
@@ -281,8 +281,8 @@
     {
       "label": "Request",
       "file_type": "code",
-      "source_file": "api_app.py",
-      "source_location": "L246",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "request",
       "community": 6,
@@ -311,8 +311,8 @@
     {
       "label": "BackgroundTasks",
       "file_type": "code",
-      "source_file": "api_app.py",
-      "source_location": "L360",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "backgroundtasks",
       "community": 6,
@@ -322,7 +322,7 @@
       "label": "post_refresh_asba()",
       "file_type": "code",
       "source_file": "api_app.py",
-      "source_location": "L408",
+      "source_location": "L409",
       "_origin": "ast",
       "id": "api_app_post_refresh_asba",
       "community": 6,
@@ -372,9 +372,9 @@
       "label": "Verify JWT, ensure MeroShare credentials include CRN and transaction PIN,     st",
       "file_type": "rationale",
       "source_file": "api_app.py",
-      "source_location": "L409",
+      "source_location": "L410",
       "_origin": "ast",
-      "id": "api_app_rationale_409",
+      "id": "api_app_rationale_410",
       "community": 6,
       "norm_label": "verify jwt, ensure meroshare credentials include crn and transaction pin,     st"
     },
@@ -401,18 +401,28 @@
     {
       "label": "ProgressCallback",
       "file_type": "code",
-      "source_file": "main.py",
-      "source_location": "L38",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "progresscallback",
       "community": 2,
       "norm_label": "progresscallback"
     },
     {
+      "label": "_asba_progress_after_scrape()",
+      "file_type": "code",
+      "source_file": "main.py",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "main_asba_progress_after_scrape",
+      "community": 2,
+      "norm_label": "_asba_progress_after_scrape()"
+    },
+    {
       "label": "login_meroshare()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L59",
+      "source_location": "L70",
       "_origin": "ast",
       "id": "main_login_meroshare",
       "community": 2,
@@ -421,18 +431,68 @@
     {
       "label": "Page",
       "file_type": "code",
-      "source_file": "main.py",
-      "source_location": "L59",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "page",
       "community": 2,
       "norm_label": "page"
     },
     {
+      "label": "_click_locator()",
+      "file_type": "code",
+      "source_file": "main.py",
+      "source_location": "L185",
+      "_origin": "ast",
+      "id": "main_click_locator",
+      "community": 2,
+      "norm_label": "_click_locator()"
+    },
+    {
+      "label": "_ensure_asba_list_page()",
+      "file_type": "code",
+      "source_file": "main.py",
+      "source_location": "L196",
+      "_origin": "ast",
+      "id": "main_ensure_asba_list_page",
+      "community": 2,
+      "norm_label": "_ensure_asba_list_page()"
+    },
+    {
+      "label": "_wait_for_asba_apply_form()",
+      "file_type": "code",
+      "source_file": "main.py",
+      "source_location": "L206",
+      "_origin": "ast",
+      "id": "main_wait_for_asba_apply_form",
+      "community": 2,
+      "norm_label": "_wait_for_asba_apply_form()"
+    },
+    {
+      "label": "_click_asba_apply_and_get_form_page()",
+      "file_type": "code",
+      "source_file": "main.py",
+      "source_location": "L212",
+      "_origin": "ast",
+      "id": "main_click_asba_apply_and_get_form_page",
+      "community": 2,
+      "norm_label": "_click_asba_apply_and_get_form_page()"
+    },
+    {
+      "label": "BrowserContext",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "browsercontext",
+      "community": 2,
+      "norm_label": "browsercontext"
+    },
+    {
       "label": "_fill_asba_application_form()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L174",
+      "source_location": "L255",
       "_origin": "ast",
       "id": "main_fill_asba_application_form",
       "community": 2,
@@ -442,27 +502,17 @@
       "label": "apply_asba_ipo_listings()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L194",
+      "source_location": "L316",
       "_origin": "ast",
       "id": "main_apply_asba_ipo_listings",
       "community": 2,
       "norm_label": "apply_asba_ipo_listings()"
     },
     {
-      "label": "BrowserContext",
-      "file_type": "code",
-      "source_file": "main.py",
-      "source_location": "L194",
-      "_origin": "ast",
-      "id": "browsercontext",
-      "community": 2,
-      "norm_label": "browsercontext"
-    },
-    {
       "label": "scrape_transactions()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L319",
+      "source_location": "L431",
       "_origin": "ast",
       "id": "main_scrape_transactions",
       "community": 2,
@@ -472,7 +522,7 @@
       "label": "_tx_csv_balance_series()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L387",
+      "source_location": "L499",
       "_origin": "ast",
       "id": "main_tx_csv_balance_series",
       "community": 2,
@@ -481,8 +531,8 @@
     {
       "label": "DataFrame",
       "file_type": "code",
-      "source_file": "main.py",
-      "source_location": "L387",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "dataframe",
       "community": 2,
@@ -491,8 +541,8 @@
     {
       "label": "Series",
       "file_type": "code",
-      "source_file": "main.py",
-      "source_location": "L387",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "series",
       "community": 2,
@@ -502,7 +552,7 @@
       "label": "open_scrips_from_transaction_records()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L425",
+      "source_location": "L537",
       "_origin": "ast",
       "id": "main_open_scrips_from_transaction_records",
       "community": 2,
@@ -512,7 +562,7 @@
       "label": "_find_purchase_script_input()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L435",
+      "source_location": "L547",
       "_origin": "ast",
       "id": "main_find_purchase_script_input",
       "community": 2,
@@ -522,7 +572,7 @@
       "label": "_clear_purchase_input()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L458",
+      "source_location": "L570",
       "_origin": "ast",
       "id": "main_clear_purchase_input",
       "community": 2,
@@ -532,7 +582,7 @@
       "label": "_find_purchase_result_tables()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L480",
+      "source_location": "L592",
       "_origin": "ast",
       "id": "main_find_purchase_result_tables",
       "community": 2,
@@ -542,7 +592,7 @@
       "label": "scrape_purchase_sources()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L522",
+      "source_location": "L634",
       "_origin": "ast",
       "id": "main_scrape_purchase_sources",
       "community": 2,
@@ -552,7 +602,7 @@
       "label": "_portfolio_header_key()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L614",
+      "source_location": "L726",
       "_origin": "ast",
       "id": "main_portfolio_header_key",
       "community": 2,
@@ -562,7 +612,7 @@
       "label": "_portfolio_pick_col()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L618",
+      "source_location": "L730",
       "_origin": "ast",
       "id": "main_portfolio_pick_col",
       "community": 2,
@@ -572,7 +622,7 @@
       "label": "scrape_portfolio_ltp()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L626",
+      "source_location": "L738",
       "_origin": "ast",
       "id": "main_scrape_portfolio_ltp",
       "community": 2,
@@ -582,7 +632,7 @@
       "label": "_purchase_col_index()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L680",
+      "source_location": "L792",
       "_origin": "ast",
       "id": "main_purchase_col_index",
       "community": 2,
@@ -592,7 +642,7 @@
       "label": "_purchase_pick_col()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L685",
+      "source_location": "L797",
       "_origin": "ast",
       "id": "main_purchase_pick_col",
       "community": 2,
@@ -602,7 +652,7 @@
       "label": "_purchase_cell_str()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L693",
+      "source_location": "L805",
       "_origin": "ast",
       "id": "main_purchase_cell_str",
       "community": 2,
@@ -612,7 +662,7 @@
       "label": "_purchase_parse_float()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L705",
+      "source_location": "L817",
       "_origin": "ast",
       "id": "main_purchase_parse_float",
       "community": 2,
@@ -622,7 +672,7 @@
       "label": "_purchase_format_quantity()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L717",
+      "source_location": "L829",
       "_origin": "ast",
       "id": "main_purchase_format_quantity",
       "community": 2,
@@ -632,7 +682,7 @@
       "label": "_purchase_format_rate()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L724",
+      "source_location": "L836",
       "_origin": "ast",
       "id": "main_purchase_format_rate",
       "community": 2,
@@ -642,7 +692,7 @@
       "label": "_canonical_purchase_source()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L728",
+      "source_location": "L840",
       "_origin": "ast",
       "id": "main_canonical_purchase_source",
       "community": 2,
@@ -652,7 +702,7 @@
       "label": "_normalize_purchase_table_df()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L735",
+      "source_location": "L847",
       "_origin": "ast",
       "id": "main_normalize_purchase_table_df",
       "community": 2,
@@ -662,7 +712,7 @@
       "label": "_purchase_tx_date_index()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L809",
+      "source_location": "L921",
       "_origin": "ast",
       "id": "main_purchase_tx_date_index",
       "community": 2,
@@ -672,7 +722,7 @@
       "label": "_purchase_fill_dates_from_transactions()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L832",
+      "source_location": "L944",
       "_origin": "ast",
       "id": "main_purchase_fill_dates_from_transactions",
       "community": 2,
@@ -682,7 +732,7 @@
       "label": "finalize_purchase_sources_rows()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L857",
+      "source_location": "L969",
       "_origin": "ast",
       "id": "main_finalize_purchase_sources_rows",
       "community": 2,
@@ -692,7 +742,7 @@
       "label": "ScraperError",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L881",
+      "source_location": "L993",
       "_origin": "ast",
       "id": "main_scrapererror",
       "community": 6,
@@ -712,7 +762,7 @@
       "label": "async_run_scraper()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L885",
+      "source_location": "L997",
       "_origin": "ast",
       "id": "main_async_run_scraper",
       "community": 2,
@@ -722,7 +772,7 @@
       "label": "async_run_asba_apply()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L1052",
+      "source_location": "L1198",
       "_origin": "ast",
       "id": "main_async_run_asba_apply",
       "community": 2,
@@ -732,7 +782,7 @@
       "label": "run_asba_apply()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L1126",
+      "source_location": "L1272",
       "_origin": "ast",
       "id": "main_run_asba_apply",
       "community": 2,
@@ -742,39 +792,89 @@
       "label": "run_scraper()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L1141",
+      "source_location": "L1287",
       "_origin": "ast",
       "id": "main_run_scraper",
-      "community": 6,
+      "community": 2,
       "norm_label": "run_scraper()"
     },
     {
       "label": "main()",
       "file_type": "code",
       "source_file": "main.py",
-      "source_location": "L1156",
+      "source_location": "L1302",
       "_origin": "ast",
       "id": "main_main",
       "community": 2,
       "norm_label": "main()"
     },
     {
+      "label": "Map ASBA apply progress (roughly 40\u2013100) onto 90\u2013100 after a completed scrape.",
+      "file_type": "rationale",
+      "source_file": "main.py",
+      "source_location": "L56",
+      "_origin": "ast",
+      "id": "main_rationale_56",
+      "community": 2,
+      "norm_label": "map asba apply progress (roughly 40\u2013100) onto 90\u2013100 after a completed scrape."
+    },
+    {
       "label": "Login to MeroShare and return True if successful.      after_login:         \"tra",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L67",
+      "source_location": "L78",
       "_origin": "ast",
-      "id": "main_rationale_67",
+      "id": "main_rationale_78",
       "community": 2,
       "norm_label": "login to meroshare and return true if successful.      after_login:         \"tra"
+    },
+    {
+      "label": "Click a MeroShare/Angular control; fall back to JS click if actionability fails.",
+      "file_type": "rationale",
+      "source_file": "main.py",
+      "source_location": "L186",
+      "_origin": "ast",
+      "id": "main_rationale_186",
+      "community": 2,
+      "norm_label": "click a meroshare/angular control; fall back to js click if actionability fails."
+    },
+    {
+      "label": "Navigate to the ASBA listing index when on an apply sub-route or another page.",
+      "file_type": "rationale",
+      "source_file": "main.py",
+      "source_location": "L197",
+      "_origin": "ast",
+      "id": "main_rationale_197",
+      "community": 2,
+      "norm_label": "navigate to the asba listing index when on an apply sub-route or another page."
+    },
+    {
+      "label": "Wait for in-page SPA navigation to the ASBA apply form.",
+      "file_type": "rationale",
+      "source_file": "main.py",
+      "source_location": "L207",
+      "_origin": "ast",
+      "id": "main_rationale_207",
+      "community": 2,
+      "norm_label": "wait for in-page spa navigation to the asba apply form."
+    },
+    {
+      "label": "Click Apply and return (page with the form, is_new_tab).     MeroShare usually n",
+      "file_type": "rationale",
+      "source_file": "main.py",
+      "source_location": "L217",
+      "_origin": "ast",
+      "id": "main_rationale_217",
+      "community": 2,
+      "norm_label": "click apply and return (page with the form, is_new_tab).     meroshare usually n"
     },
     {
       "label": "Apply for every IPO listing on the ASBA page. Returns count of applications subm",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L203",
+      "source_location": "L325",
       "_origin": "ast",
-      "id": "main_rationale_203",
+      "id": "main_rationale_325",
       "community": 2,
       "norm_label": "apply for every ipo listing on the asba page. returns count of applications subm"
     },
@@ -782,9 +882,9 @@
       "label": "Download transactions CSV (Date filter) and return rows as records.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L322",
+      "source_location": "L434",
       "_origin": "ast",
-      "id": "main_rationale_322",
+      "id": "main_rationale_434",
       "community": 2,
       "norm_label": "download transactions csv (date filter) and return rows as records."
     },
@@ -792,9 +892,9 @@
       "label": "Current units per Scrip: last row per symbol after sorting by S.N descending (ne",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L388",
+      "source_location": "L500",
       "_origin": "ast",
-      "id": "main_rationale_388",
+      "id": "main_rationale_500",
       "community": 2,
       "norm_label": "current units per scrip: last row per symbol after sorting by s.n descending (ne"
     },
@@ -802,9 +902,9 @@
       "label": "Scrips with balance > 0 from in-memory transaction rows (same logic as MeroShare",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L426",
+      "source_location": "L538",
       "_origin": "ast",
-      "id": "main_rationale_426",
+      "id": "main_rationale_538",
       "community": 2,
       "norm_label": "scrips with balance > 0 from in-memory transaction rows (same logic as meroshare"
     },
@@ -812,9 +912,9 @@
       "label": "Locate the scrip field on My Purchase Source (name=script or fallbacks).",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L436",
+      "source_location": "L548",
       "_origin": "ast",
-      "id": "main_rationale_436",
+      "id": "main_rationale_548",
       "community": 2,
       "norm_label": "locate the scrip field on my purchase source (name=script or fallbacks)."
     },
@@ -822,9 +922,9 @@
       "label": "Clear scrip field; JS + events for SPA frameworks, then keyboard clear.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L459",
+      "source_location": "L571",
       "_origin": "ast",
-      "id": "main_rationale_459",
+      "id": "main_rationale_571",
       "community": 2,
       "norm_label": "clear scrip field; js + events for spa frameworks, then keyboard clear."
     },
@@ -832,9 +932,9 @@
       "label": "Wait for result tables after Search. Results often load asynchronously; a short",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L481",
+      "source_location": "L593",
       "_origin": "ast",
-      "id": "main_rationale_481",
+      "id": "main_rationale_593",
       "community": 2,
       "norm_label": "wait for result tables after search. results often load asynchronously; a short"
     },
@@ -842,9 +942,9 @@
       "label": "For each scrip, search My Purchase Source; each result table maps to canonical p",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L529",
+      "source_location": "L641",
       "_origin": "ast",
-      "id": "main_rationale_529",
+      "id": "main_rationale_641",
       "community": 2,
       "norm_label": "for each scrip, search my purchase source; each result table maps to canonical p"
     },
@@ -852,9 +952,9 @@
       "label": "Scrape portfolio table and return latest LTP for requested scrips.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L630",
+      "source_location": "L742",
       "_origin": "ast",
-      "id": "main_rationale_630",
+      "id": "main_rationale_742",
       "community": 2,
       "norm_label": "scrape portfolio table and return latest ltp for requested scrips."
     },
@@ -862,9 +962,9 @@
       "label": "Lowercase stripped header -> original column name.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L681",
+      "source_location": "L793",
       "_origin": "ast",
-      "id": "main_rationale_681",
+      "id": "main_rationale_793",
       "community": 2,
       "norm_label": "lowercase stripped header -> original column name."
     },
@@ -872,9 +972,9 @@
       "label": "Map one parsed HTML table to canonical purchase fields (no wide concat).",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L738",
+      "source_location": "L850",
       "_origin": "ast",
-      "id": "main_rationale_738",
+      "id": "main_rationale_850",
       "community": 2,
       "norm_label": "map one parsed html table to canonical purchase fields (no wide concat)."
     },
@@ -882,9 +982,9 @@
       "label": "Map (scrip_upper, quantity_str) -> transaction dates (Credit Quantity match).",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L812",
+      "source_location": "L924",
       "_origin": "ast",
-      "id": "main_rationale_812",
+      "id": "main_rationale_924",
       "community": 2,
       "norm_label": "map (scrip_upper, quantity_str) -> transaction dates (credit quantity match)."
     },
@@ -892,9 +992,9 @@
       "label": "Canonical purchase rows (no scraped_at column) and scrape timestamp ISO string.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L861",
+      "source_location": "L973",
       "_origin": "ast",
-      "id": "main_rationale_861",
+      "id": "main_rationale_973",
       "community": 2,
       "norm_label": "canonical purchase rows (no scraped_at column) and scrape timestamp iso string."
     },
@@ -902,9 +1002,9 @@
       "label": "Raised when the MeroShare scrape cannot complete successfully.",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L882",
+      "source_location": "L994",
       "_origin": "ast",
-      "id": "main_rationale_882",
+      "id": "main_rationale_994",
       "community": 6,
       "norm_label": "raised when the meroshare scrape cannot complete successfully."
     },
@@ -912,9 +1012,9 @@
       "label": "Load credentials for user_id, run Playwright scrape, upsert transactions and pur",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L891",
+      "source_location": "L1003",
       "_origin": "ast",
-      "id": "main_rationale_891",
+      "id": "main_rationale_1003",
       "community": 2,
       "norm_label": "load credentials for user_id, run playwright scrape, upsert transactions and pur"
     },
@@ -922,9 +1022,9 @@
       "label": "Load credentials for user_id, log into MeroShare, and apply for IPO listings on",
       "file_type": "rationale",
       "source_file": "main.py",
-      "source_location": "L1058",
+      "source_location": "L1204",
       "_origin": "ast",
-      "id": "main_rationale_1058",
+      "id": "main_rationale_1204",
       "community": 2,
       "norm_label": "load credentials for user_id, log into meroshare, and apply for ipo listings on"
     },
@@ -999,6 +1099,19 @@
       "norm_label": "decrypt any fernet token stored as ascii in db."
     },
     {
+      "label": "nepse-portfolio",
+      "file_type": "code",
+      "type": "package",
+      "ecosystem": "python",
+      "source_file": "pyproject.toml",
+      "source_location": "L1",
+      "version": "0.1.0",
+      "_origin": "ast",
+      "id": "pkg_nepse_portfolio",
+      "community": 25,
+      "norm_label": "nepse-portfolio"
+    },
+    {
       "label": "scraper_db.py",
       "file_type": "code",
       "source_file": "scraper_db.py",
@@ -1015,14 +1128,14 @@
       "source_location": "L21",
       "_origin": "ast",
       "id": "scraper_db_dedupe_upsert_rows",
-      "community": 2,
+      "community": 3,
       "norm_label": "_dedupe_upsert_rows()"
     },
     {
       "label": "Any",
       "file_type": "code",
-      "source_file": "scraper_db.py",
-      "source_location": "L21",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "any",
       "community": 3,
@@ -1035,7 +1148,7 @@
       "source_location": "L43",
       "_origin": "ast",
       "id": "scraper_db_merosharecredentials",
-      "community": 2,
+      "community": 3,
       "norm_label": "merosharecredentials"
     },
     {
@@ -1045,7 +1158,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "namedtuple",
-      "community": 2,
+      "community": 3,
       "norm_label": "namedtuple"
     },
     {
@@ -1055,7 +1168,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "scraper_db_fetch_meroshare_credentials",
-      "community": 2,
+      "community": 3,
       "norm_label": "fetch_meroshare_credentials()"
     },
     {
@@ -1165,7 +1278,7 @@
       "source_location": "L207",
       "_origin": "ast",
       "id": "scraper_db_upsert_transactions",
-      "community": 2,
+      "community": 3,
       "norm_label": "upsert_transactions()"
     },
     {
@@ -1205,7 +1318,7 @@
       "source_location": "L290",
       "_origin": "ast",
       "id": "scraper_db_upsert_purchase_sources",
-      "community": 2,
+      "community": 3,
       "norm_label": "upsert_purchase_sources()"
     },
     {
@@ -1235,7 +1348,7 @@
       "source_location": "L332",
       "_origin": "ast",
       "id": "scraper_db_upsert_scrip_ltp",
-      "community": 2,
+      "community": 3,
       "norm_label": "upsert_scrip_ltp()"
     },
     {
@@ -1255,7 +1368,7 @@
       "source_location": "L22",
       "_origin": "ast",
       "id": "scraper_db_rationale_22",
-      "community": 2,
+      "community": 3,
       "norm_label": "one row per (user_id, line_hash); later rows win. avoids postgres on conflict ba"
     },
     {
@@ -1265,7 +1378,7 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "scraper_db_rationale_52",
-      "community": 2,
+      "community": 3,
       "norm_label": "return meroshare login and asba fields. raises on missing row."
     },
     {
@@ -1371,8 +1484,8 @@
     {
       "label": "Client",
       "file_type": "code",
-      "source_file": "supabase_client.py",
-      "source_location": "L29",
+      "source_file": "",
+      "source_location": "",
       "_origin": "ast",
       "id": "client",
       "community": 10,
@@ -2305,7 +2418,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_summarycards",
-      "community": 0,
+      "community": 22,
       "norm_label": "summarycards.tsx"
     },
     {
@@ -2315,7 +2428,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "components_summarycards_summarycardsprops",
-      "community": 0,
+      "community": 22,
       "norm_label": "summarycardsprops"
     },
     {
@@ -2325,7 +2438,7 @@
       "source_location": "L8",
       "_origin": "ast",
       "id": "components_summarycards_formatnpr",
-      "community": 0,
+      "community": 22,
       "norm_label": "formatnpr()"
     },
     {
@@ -2335,7 +2448,7 @@
       "source_location": "L15",
       "_origin": "ast",
       "id": "components_summarycards_formatsignednpr",
-      "community": 0,
+      "community": 22,
       "norm_label": "formatsignednpr()"
     },
     {
@@ -2345,7 +2458,7 @@
       "source_location": "L20",
       "_origin": "ast",
       "id": "components_summarycards_summarycards",
-      "community": 0,
+      "community": 22,
       "norm_label": "summarycards()"
     },
     {
@@ -2605,7 +2718,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_classifytransaction_test",
-      "community": 0,
+      "community": 1,
       "norm_label": "classifytransaction.test.ts"
     },
     {
@@ -2615,7 +2728,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_classifytransaction",
-      "community": 0,
+      "community": 1,
       "norm_label": "classifytransaction.ts"
     },
     {
@@ -2625,7 +2738,7 @@
       "source_location": "L3",
       "_origin": "ast",
       "id": "lib_classifytransaction_classifytransaction",
-      "community": 0,
+      "community": 1,
       "norm_label": "classifytransaction()"
     },
     {
@@ -2635,7 +2748,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio",
-      "community": 0,
+      "community": 1,
       "norm_label": "mapdbtoportfolio.ts"
     },
     {
@@ -2645,7 +2758,7 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_dbtransactionrow",
-      "community": 0,
+      "community": 1,
       "norm_label": "dbtransactionrow"
     },
     {
@@ -2655,7 +2768,7 @@
       "source_location": "L31",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_dbpurchasesourcerow",
-      "community": 0,
+      "community": 1,
       "norm_label": "dbpurchasesourcerow"
     },
     {
@@ -2665,7 +2778,7 @@
       "source_location": "L44",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_dbscripltprow",
-      "community": 0,
+      "community": 1,
       "norm_label": "dbscripltprow"
     },
     {
@@ -2675,7 +2788,7 @@
       "source_location": "L54",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_num",
-      "community": 0,
+      "community": 1,
       "norm_label": "num()"
     },
     {
@@ -2685,7 +2798,7 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_datestr",
-      "community": 0,
+      "community": 1,
       "norm_label": "datestr()"
     },
     {
@@ -2695,7 +2808,7 @@
       "source_location": "L67",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_dbtransactionstoparsed",
-      "community": 0,
+      "community": 1,
       "norm_label": "dbtransactionstoparsed()"
     },
     {
@@ -2705,7 +2818,7 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_dbpurchasesourcestoparsed",
-      "community": 0,
+      "community": 1,
       "norm_label": "dbpurchasesourcestoparsed()"
     },
     {
@@ -2715,7 +2828,7 @@
       "source_location": "L129",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_buildportfoliofromdb",
-      "community": 0,
+      "community": 1,
       "norm_label": "buildportfoliofromdb()"
     },
     {
@@ -2725,7 +2838,7 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "lib_mapdbtoportfolio_buildscripltpmap",
-      "community": 0,
+      "community": 1,
       "norm_label": "buildscripltpmap()"
     },
     {
@@ -3045,7 +3158,7 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "lib_types_portfolioresult",
-      "community": 0,
+      "community": 1,
       "norm_label": "portfolioresult"
     },
     {
@@ -3095,7 +3208,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "pages_dashboardpage",
-      "community": 0,
+      "community": 1,
       "norm_label": "dashboardpage.tsx"
     },
     {
@@ -3105,7 +3218,7 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "pages_dashboardpage_matchesfilter",
-      "community": 0,
+      "community": 1,
       "norm_label": "matchesfilter()"
     },
     {
@@ -3115,7 +3228,7 @@
       "source_location": "L28",
       "_origin": "ast",
       "id": "pages_dashboardpage_matchestxrowfilter",
-      "community": 0,
+      "community": 1,
       "norm_label": "matchestxrowfilter()"
     },
     {
@@ -3125,7 +3238,7 @@
       "source_location": "L36",
       "_origin": "ast",
       "id": "pages_dashboardpage_errmsg",
-      "community": 0,
+      "community": 1,
       "norm_label": "errmsg()"
     },
     {
@@ -3135,7 +3248,7 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "pages_dashboardpage_formattxdate",
-      "community": 0,
+      "community": 1,
       "norm_label": "formattxdate()"
     },
     {
@@ -3145,7 +3258,7 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "pages_dashboardpage_formatnum",
-      "community": 0,
+      "community": 1,
       "norm_label": "formatnum()"
     },
     {
@@ -3155,7 +3268,7 @@
       "source_location": "L51",
       "_origin": "ast",
       "id": "pages_dashboardpage_formatlastupdated",
-      "community": 0,
+      "community": 1,
       "norm_label": "formatlastupdated()"
     },
     {
@@ -3165,7 +3278,7 @@
       "source_location": "L56",
       "_origin": "ast",
       "id": "pages_dashboardpage_spinner",
-      "community": 0,
+      "community": 1,
       "norm_label": "spinner()"
     },
     {
@@ -3555,7 +3668,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme",
-      "community": 22,
+      "community": 5,
       "norm_label": "readme.md"
     },
     {
@@ -3565,7 +3678,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "readme_nepse_portfolio",
-      "community": 22,
+      "community": 5,
       "norm_label": "nepse-portfolio"
     },
     {
@@ -3575,7 +3688,7 @@
       "source_location": "L5",
       "_origin": "ast",
       "id": "readme_stack",
-      "community": 22,
+      "community": 5,
       "norm_label": "stack"
     },
     {
@@ -3585,7 +3698,7 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "readme_architecture",
-      "community": 22,
+      "community": 5,
       "norm_label": "architecture"
     },
     {
@@ -3595,7 +3708,7 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "readme_data_flow",
-      "community": 22,
+      "community": 5,
       "norm_label": "data flow"
     },
     {
@@ -3605,7 +3718,7 @@
       "source_location": "L48",
       "_origin": "ast",
       "id": "readme_main_files",
-      "community": 22,
+      "community": 5,
       "norm_label": "main files"
     },
     {
@@ -3615,7 +3728,7 @@
       "source_location": "L62",
       "_origin": "ast",
       "id": "readme_supabase_schema",
-      "community": 22,
+      "community": 5,
       "norm_label": "supabase schema"
     },
     {
@@ -3625,7 +3738,7 @@
       "source_location": "L73",
       "_origin": "ast",
       "id": "readme_environment_variables",
-      "community": 22,
+      "community": 5,
       "norm_label": "environment variables"
     },
     {
@@ -3635,7 +3748,7 @@
       "source_location": "L109",
       "_origin": "ast",
       "id": "readme_local_development",
-      "community": 22,
+      "community": 5,
       "norm_label": "local development"
     },
     {
@@ -3645,7 +3758,7 @@
       "source_location": "L135",
       "_origin": "ast",
       "id": "readme_scraper_cli",
-      "community": 22,
+      "community": 5,
       "norm_label": "scraper cli"
     },
     {
@@ -3655,7 +3768,7 @@
       "source_location": "L169",
       "_origin": "ast",
       "id": "readme_api_endpoints",
-      "community": 22,
+      "community": 5,
       "norm_label": "api endpoints"
     },
     {
@@ -3665,7 +3778,7 @@
       "source_location": "L184",
       "_origin": "ast",
       "id": "readme_when_to_use_render",
-      "community": 22,
+      "community": 5,
       "norm_label": "when to use render"
     },
     {
@@ -3675,7 +3788,7 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "readme_deploying_the_api",
-      "community": 22,
+      "community": 5,
       "norm_label": "deploying the api"
     },
     {
@@ -3685,7 +3798,7 @@
       "source_location": "L219",
       "_origin": "ast",
       "id": "readme_deploying_the_frontend",
-      "community": 22,
+      "community": 5,
       "norm_label": "deploying the frontend"
     },
     {
@@ -3695,7 +3808,7 @@
       "source_location": "L243",
       "_origin": "ast",
       "id": "readme_scheduled_scraping",
-      "community": 22,
+      "community": 5,
       "norm_label": "scheduled scraping"
     },
     {
@@ -3705,7 +3818,7 @@
       "source_location": "L261",
       "_origin": "ast",
       "id": "readme_tests",
-      "community": 22,
+      "community": 5,
       "norm_label": "tests"
     },
     {
@@ -3717,6 +3830,56 @@
       "id": "readme_portfolio_math",
       "community": 5,
       "norm_label": "portfolio math"
+    },
+    {
+      "label": "RUNBOOK.md",
+      "file_type": "document",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "runbook",
+      "community": 24,
+      "norm_label": "runbook.md"
+    },
+    {
+      "label": "Operations Runbook",
+      "file_type": "document",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "runbook_operations_runbook",
+      "community": 24,
+      "norm_label": "operations runbook"
+    },
+    {
+      "label": "1. MeroShare portfolio scrape \u2192 Supabase",
+      "file_type": "document",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "runbook_1_meroshare_portfolio_scrape_supabase",
+      "community": 24,
+      "norm_label": "1. meroshare portfolio scrape \u2192 supabase"
+    },
+    {
+      "label": "2. Market-data CSV crons (launchd)",
+      "file_type": "document",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L36",
+      "_origin": "ast",
+      "id": "runbook_2_market_data_csv_crons_launchd",
+      "community": 24,
+      "norm_label": "2. market-data csv crons (launchd)"
+    },
+    {
+      "label": "Gotcha: launchd log path must be OUTSIDE `~/Desktop`",
+      "file_type": "document",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "runbook_gotcha_launchd_log_path_must_be_outside_desktop",
+      "community": 24,
+      "norm_label": "gotcha: launchd log path must be outside `~/desktop`"
     },
     {
       "label": "Dependabot Config",
@@ -4253,9 +4416,9 @@
       "source_file": "api_app.py",
       "source_location": "L408",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app",
-      "target": "api_app_post_refresh_asba",
-      "confidence_score": 1.0
+      "target": "api_app_post_refresh_asba"
     },
     {
       "relation": "contains",
@@ -4263,9 +4426,9 @@
       "source_file": "api_app.py",
       "source_location": "L188",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app",
-      "target": "api_app_run_asba_background",
-      "confidence_score": 1.0
+      "target": "api_app_run_asba_background"
     },
     {
       "relation": "contains",
@@ -4325,9 +4488,9 @@
       "source_file": "api_app.py",
       "source_location": "L17",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app",
-      "target": "main_run_asba_apply",
-      "confidence_score": 1.0
+      "target": "main_run_asba_apply"
     },
     {
       "relation": "imports",
@@ -4423,9 +4586,9 @@
       "source_file": "api_app.py",
       "source_location": "L415",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "api_app_verify_jwt_user_id",
-      "confidence_score": 1.0
+      "target": "api_app_verify_jwt_user_id"
     },
     {
       "relation": "references",
@@ -4489,9 +4652,9 @@
       "source_file": "api_app.py",
       "source_location": "L457",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "api_app_format_postgrest_error",
-      "confidence_score": 1.0
+      "target": "api_app_format_postgrest_error"
     },
     {
       "relation": "calls",
@@ -4565,9 +4728,9 @@
       "source_file": "api_app.py",
       "source_location": "L452",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "api_app_create_scrape_job",
-      "confidence_score": 1.0
+      "target": "api_app_create_scrape_job"
     },
     {
       "relation": "rationale_for",
@@ -4586,9 +4749,9 @@
       "source_file": "api_app.py",
       "source_location": "L193",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_run_asba_background",
-      "target": "api_app_update_job_progress",
-      "confidence_score": 1.0
+      "target": "api_app_update_job_progress"
     },
     {
       "relation": "calls",
@@ -4608,9 +4771,9 @@
       "source_file": "api_app.py",
       "source_location": "L197",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_run_asba_background",
-      "target": "api_app_mark_job_complete",
-      "confidence_score": 1.0
+      "target": "api_app_mark_job_complete"
     },
     {
       "relation": "calls",
@@ -4630,9 +4793,9 @@
       "source_file": "api_app.py",
       "source_location": "L204",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_run_asba_background",
-      "target": "api_app_mark_job_failed",
-      "confidence_score": 1.0
+      "target": "api_app_mark_job_failed"
     },
     {
       "relation": "calls",
@@ -4663,9 +4826,9 @@
       "source_file": "api_app.py",
       "source_location": "L190",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_run_asba_background",
-      "target": "main_run_asba_apply",
-      "confidence_score": 1.0
+      "target": "main_run_asba_apply"
     },
     {
       "relation": "inherits",
@@ -4704,9 +4867,9 @@
       "source_file": "api_app.py",
       "source_location": "L241",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_rationale_241",
-      "target": "api_app_health",
-      "confidence_score": 1.0
+      "target": "api_app_health"
     },
     {
       "relation": "references",
@@ -4748,9 +4911,9 @@
       "source_file": "api_app.py",
       "source_location": "L408",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "request",
-      "confidence_score": 1.0
+      "target": "request"
     },
     {
       "relation": "uses",
@@ -4780,9 +4943,9 @@
       "source_file": "api_app.py",
       "source_location": "L413",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "api_app_bearer_token",
-      "confidence_score": 1.0
+      "target": "api_app_bearer_token"
     },
     {
       "relation": "references",
@@ -4801,9 +4964,9 @@
       "source_file": "api_app.py",
       "source_location": "L361",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_rationale_361",
-      "target": "api_app_post_refresh",
-      "confidence_score": 1.0
+      "target": "api_app_post_refresh"
     },
     {
       "relation": "references",
@@ -4812,9 +4975,9 @@
       "source_file": "api_app.py",
       "source_location": "L408",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "api_app_post_refresh_asba",
-      "target": "backgroundtasks",
-      "confidence_score": 1.0
+      "target": "backgroundtasks"
     },
     {
       "relation": "uses",
@@ -4830,9 +4993,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "api_app.py",
-      "source_location": "L409",
+      "source_location": "L410",
       "weight": 1.0,
-      "source": "api_app_rationale_409",
+      "source": "api_app_rationale_410",
       "target": "api_app_post_refresh_asba",
       "confidence_score": 1.0
     },
@@ -4842,8 +5005,18 @@
       "source_file": "main.py",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main",
-      "target": "main_apply_asba_ipo_listings",
+      "target": "main_apply_asba_ipo_listings"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "main",
+      "target": "main_asba_progress_after_scrape",
       "confidence_score": 1.0
     },
     {
@@ -4852,9 +5025,9 @@
       "source_file": "main.py",
       "source_location": "L1052",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main",
-      "target": "main_async_run_asba_apply",
-      "confidence_score": 1.0
+      "target": "main_async_run_asba_apply"
     },
     {
       "relation": "contains",
@@ -4890,6 +5063,26 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "source": "main",
+      "target": "main_click_asba_apply_and_get_form_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L185",
+      "weight": 1.0,
+      "source": "main",
+      "target": "main_click_locator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
       "source_location": "L37",
       "weight": 1.0,
       "confidence_score": 1.0,
@@ -4900,11 +5093,21 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L174",
+      "source_location": "L196",
       "weight": 1.0,
       "source": "main",
-      "target": "main_fill_asba_application_form",
+      "target": "main_ensure_asba_list_page",
       "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L174",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "main",
+      "target": "main_fill_asba_application_form"
     },
     {
       "relation": "contains",
@@ -5082,9 +5285,9 @@
       "source_file": "main.py",
       "source_location": "L1126",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main",
-      "target": "main_run_asba_apply",
-      "confidence_score": 1.0
+      "target": "main_run_asba_apply"
     },
     {
       "relation": "contains",
@@ -5147,6 +5350,16 @@
       "target": "main_tx_csv_balance_series"
     },
     {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L206",
+      "weight": 1.0,
+      "source": "main",
+      "target": "main_wait_for_asba_apply_form",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
@@ -5164,9 +5377,9 @@
       "source_file": "main.py",
       "source_location": "L19",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main",
-      "target": "scraper_db_fetch_meroshare_asba_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_asba_credentials"
     },
     {
       "relation": "imports",
@@ -5274,7 +5487,18 @@
       "source_file": "main.py",
       "source_location": "L271",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_apply_asba_ipo_listings",
+      "target": "main_emit_progress"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "main_asba_progress_after_scrape",
       "target": "main_emit_progress",
       "confidence_score": 1.0
     },
@@ -5285,9 +5509,9 @@
       "source_file": "main.py",
       "source_location": "L1062",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
-      "target": "main_emit_progress",
-      "confidence_score": 1.0
+      "target": "main_emit_progress"
     },
     {
       "relation": "calls",
@@ -5329,7 +5553,18 @@
       "source_file": "main.py",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_apply_asba_ipo_listings",
+      "target": "progresscallback"
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "main_asba_progress_after_scrape",
       "target": "progresscallback",
       "confidence_score": 1.0
     },
@@ -5340,9 +5575,9 @@
       "source_file": "main.py",
       "source_location": "L1052",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
-      "target": "progresscallback",
-      "confidence_score": 1.0
+      "target": "progresscallback"
     },
     {
       "relation": "references",
@@ -5362,9 +5597,9 @@
       "source_file": "main.py",
       "source_location": "L1126",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_run_asba_apply",
-      "target": "progresscallback",
-      "confidence_score": 1.0
+      "target": "progresscallback"
     },
     {
       "relation": "references",
@@ -5393,11 +5628,32 @@
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
+      "source_location": "L1169",
+      "weight": 1.0,
+      "source": "main_async_run_scraper",
+      "target": "main_asba_progress_after_scrape",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "source": "main_rationale_56",
+      "target": "main_asba_progress_after_scrape",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
       "source_location": "L1095",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
-      "target": "main_login_meroshare",
-      "confidence_score": 1.0
+      "target": "main_login_meroshare"
     },
     {
       "relation": "calls",
@@ -5425,9 +5681,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L67",
+      "source_location": "L78",
       "weight": 1.0,
-      "source": "main_rationale_67",
+      "source": "main_rationale_78",
       "target": "main_login_meroshare",
       "confidence_score": 1.0
     },
@@ -5438,7 +5694,29 @@
       "source_file": "main.py",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_apply_asba_ipo_listings",
+      "target": "page"
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "source": "main_click_asba_apply_and_get_form_page",
+      "target": "page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L196",
+      "weight": 1.0,
+      "source": "main_ensure_asba_list_page",
       "target": "page",
       "confidence_score": 1.0
     },
@@ -5449,9 +5727,9 @@
       "source_file": "main.py",
       "source_location": "L174",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_fill_asba_application_form",
-      "target": "page",
-      "confidence_score": 1.0
+      "target": "page"
     },
     {
       "relation": "references",
@@ -5509,14 +5787,120 @@
       "target": "page"
     },
     {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L206",
+      "weight": 1.0,
+      "source": "main_wait_for_asba_apply_form",
+      "target": "page",
+      "confidence_score": 1.0
+    },
+    {
       "relation": "calls",
       "context": "call",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L301",
+      "source_location": "L224",
+      "weight": 1.0,
+      "source": "main_click_asba_apply_and_get_form_page",
+      "target": "main_click_locator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L278",
+      "weight": 1.0,
+      "source": "main_fill_asba_application_form",
+      "target": "main_click_locator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L186",
+      "weight": 1.0,
+      "source": "main_rationale_186",
+      "target": "main_click_locator",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L326",
       "weight": 1.0,
       "source": "main_apply_asba_ipo_listings",
-      "target": "main_fill_asba_application_form",
+      "target": "main_ensure_asba_list_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "main_rationale_197",
+      "target": "main_ensure_asba_list_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L222",
+      "weight": 1.0,
+      "source": "main_click_asba_apply_and_get_form_page",
+      "target": "main_wait_for_asba_apply_form",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L207",
+      "weight": 1.0,
+      "source": "main_rationale_207",
+      "target": "main_wait_for_asba_apply_form",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L400",
+      "weight": 1.0,
+      "source": "main_apply_asba_ipo_listings",
+      "target": "main_click_asba_apply_and_get_form_page",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L212",
+      "weight": 1.0,
+      "source": "main_click_asba_apply_and_get_form_page",
+      "target": "browsercontext",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L217",
+      "weight": 1.0,
+      "source": "main_rationale_217",
+      "target": "main_click_asba_apply_and_get_form_page",
       "confidence_score": 1.0
     },
     {
@@ -5526,9 +5910,20 @@
       "source_file": "main.py",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_apply_asba_ipo_listings",
-      "target": "browsercontext",
-      "confidence_score": 1.0
+      "target": "browsercontext"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L301",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "main_apply_asba_ipo_listings",
+      "target": "main_fill_asba_application_form"
     },
     {
       "relation": "calls",
@@ -5537,7 +5932,18 @@
       "source_file": "main.py",
       "source_location": "L1105",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
+      "target": "main_apply_asba_ipo_listings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "main.py",
+      "source_location": "L1163",
+      "weight": 1.0,
+      "source": "main_async_run_scraper",
       "target": "main_apply_asba_ipo_listings",
       "confidence_score": 1.0
     },
@@ -5545,9 +5951,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L203",
+      "source_location": "L325",
       "weight": 1.0,
-      "source": "main_rationale_203",
+      "source": "main_rationale_325",
       "target": "main_apply_asba_ipo_listings",
       "confidence_score": 1.0
     },
@@ -5566,9 +5972,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L322",
+      "source_location": "L434",
       "weight": 1.0,
-      "source": "main_rationale_322",
+      "source": "main_rationale_434",
       "target": "main_scrape_transactions",
       "confidence_score": 1.0
     },
@@ -5587,9 +5993,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L388",
+      "source_location": "L500",
       "weight": 1.0,
-      "source": "main_rationale_388",
+      "source": "main_rationale_500",
       "target": "main_tx_csv_balance_series",
       "confidence_score": 1.0
     },
@@ -5685,9 +6091,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L426",
+      "source_location": "L538",
       "weight": 1.0,
-      "source": "main_rationale_426",
+      "source": "main_rationale_538",
       "target": "main_open_scrips_from_transaction_records",
       "confidence_score": 1.0
     },
@@ -5695,9 +6101,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L436",
+      "source_location": "L548",
       "weight": 1.0,
-      "source": "main_rationale_436",
+      "source": "main_rationale_548",
       "target": "main_find_purchase_script_input",
       "confidence_score": 1.0
     },
@@ -5716,9 +6122,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L459",
+      "source_location": "L571",
       "weight": 1.0,
-      "source": "main_rationale_459",
+      "source": "main_rationale_571",
       "target": "main_clear_purchase_input",
       "confidence_score": 1.0
     },
@@ -5737,9 +6143,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L481",
+      "source_location": "L593",
       "weight": 1.0,
-      "source": "main_rationale_481",
+      "source": "main_rationale_593",
       "target": "main_find_purchase_result_tables",
       "confidence_score": 1.0
     },
@@ -5780,9 +6186,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L529",
+      "source_location": "L641",
       "weight": 1.0,
-      "source": "main_rationale_529",
+      "source": "main_rationale_641",
       "target": "main_scrape_purchase_sources",
       "confidence_score": 1.0
     },
@@ -5834,9 +6240,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L630",
+      "source_location": "L742",
       "weight": 1.0,
-      "source": "main_rationale_630",
+      "source": "main_rationale_742",
       "target": "main_scrape_portfolio_ltp",
       "confidence_score": 1.0
     },
@@ -5866,9 +6272,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L681",
+      "source_location": "L793",
       "weight": 1.0,
-      "source": "main_rationale_681",
+      "source": "main_rationale_793",
       "target": "main_purchase_col_index",
       "confidence_score": 1.0
     },
@@ -6008,9 +6414,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L738",
+      "source_location": "L850",
       "weight": 1.0,
-      "source": "main_rationale_738",
+      "source": "main_rationale_850",
       "target": "main_normalize_purchase_table_df",
       "confidence_score": 1.0
     },
@@ -6029,9 +6435,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L812",
+      "source_location": "L924",
       "weight": 1.0,
-      "source": "main_rationale_812",
+      "source": "main_rationale_924",
       "target": "main_purchase_tx_date_index",
       "confidence_score": 1.0
     },
@@ -6061,9 +6467,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L861",
+      "source_location": "L973",
       "weight": 1.0,
-      "source": "main_rationale_861",
+      "source": "main_rationale_973",
       "target": "main_finalize_purchase_sources_rows",
       "confidence_score": 1.0
     },
@@ -6074,9 +6480,9 @@
       "source_file": "main.py",
       "source_location": "L1066",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
-      "target": "main_scrapererror",
-      "confidence_score": 1.0
+      "target": "main_scrapererror"
     },
     {
       "relation": "calls",
@@ -6093,9 +6499,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L882",
+      "source_location": "L994",
       "weight": 1.0,
-      "source": "main_rationale_882",
+      "source": "main_rationale_994",
       "target": "main_scrapererror",
       "confidence_score": 1.0
     },
@@ -6190,9 +6596,9 @@
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L891",
+      "source_location": "L1003",
       "weight": 1.0,
-      "source": "main_rationale_891",
+      "source": "main_rationale_1003",
       "target": "main_async_run_scraper",
       "confidence_score": 1.0
     },
@@ -6214,17 +6620,17 @@
       "source_file": "main.py",
       "source_location": "L1064",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_async_run_asba_apply",
-      "target": "scraper_db_fetch_meroshare_asba_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_asba_credentials"
     },
     {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "main.py",
-      "source_location": "L1058",
+      "source_location": "L1204",
       "weight": 1.0,
-      "source": "main_rationale_1058",
+      "source": "main_rationale_1204",
       "target": "main_async_run_asba_apply",
       "confidence_score": 1.0
     },
@@ -6235,9 +6641,9 @@
       "source_file": "main.py",
       "source_location": "L1133",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "main_run_asba_apply",
-      "target": "main_async_run_asba_apply",
-      "confidence_score": 1.0
+      "target": "main_async_run_asba_apply"
     },
     {
       "relation": "calls",
@@ -6267,9 +6673,9 @@
       "source_file": "meroshare_crypto.py",
       "source_location": "L21",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "meroshare_crypto",
-      "target": "meroshare_crypto_decrypt_encrypted",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_decrypt_encrypted"
     },
     {
       "relation": "contains",
@@ -6319,9 +6725,9 @@
       "source_file": "meroshare_crypto.py",
       "source_location": "L23",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "meroshare_crypto_decrypt_encrypted",
-      "target": "meroshare_crypto_fernet",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_fernet"
     },
     {
       "relation": "calls",
@@ -6341,9 +6747,9 @@
       "source_file": "meroshare_crypto.py",
       "source_location": "L18",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "meroshare_crypto_decrypt_password",
-      "target": "meroshare_crypto_decrypt_encrypted",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_decrypt_encrypted"
     },
     {
       "relation": "rationale_for",
@@ -6383,9 +6789,9 @@
       "source_file": "meroshare_crypto.py",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "meroshare_crypto_rationale_22",
-      "target": "meroshare_crypto_decrypt_encrypted",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_decrypt_encrypted"
     },
     {
       "relation": "imports",
@@ -6394,9 +6800,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L13",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db",
-      "target": "meroshare_crypto_decrypt_encrypted",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_decrypt_encrypted"
     },
     {
       "relation": "calls",
@@ -6405,9 +6811,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L67",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_fetch_meroshare_credentials",
-      "target": "meroshare_crypto_decrypt_encrypted",
-      "confidence_score": 1.0
+      "target": "meroshare_crypto_decrypt_encrypted"
     },
     {
       "relation": "contains",
@@ -6435,9 +6841,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L80",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db",
-      "target": "scraper_db_fetch_meroshare_asba_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_asba_credentials"
     },
     {
       "relation": "contains",
@@ -6485,9 +6891,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db",
-      "target": "scraper_db_merosharecredentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_merosharecredentials"
     },
     {
       "relation": "contains",
@@ -6800,9 +7206,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L80",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_fetch_meroshare_asba_credentials",
-      "target": "scraper_db_merosharecredentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_merosharecredentials"
     },
     {
       "relation": "references",
@@ -6811,9 +7217,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L51",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_fetch_meroshare_credentials",
-      "target": "scraper_db_merosharecredentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_merosharecredentials"
     },
     {
       "relation": "inherits",
@@ -6821,9 +7227,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L43",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_merosharecredentials",
-      "target": "namedtuple",
-      "confidence_score": 1.0
+      "target": "namedtuple"
     },
     {
       "relation": "calls",
@@ -6832,9 +7238,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L82",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_fetch_meroshare_asba_credentials",
-      "target": "scraper_db_fetch_meroshare_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_credentials"
     },
     {
       "relation": "rationale_for",
@@ -6842,9 +7248,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L52",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_52",
-      "target": "scraper_db_fetch_meroshare_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_credentials"
     },
     {
       "relation": "rationale_for",
@@ -6852,9 +7258,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L81",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_81",
-      "target": "scraper_db_fetch_meroshare_asba_credentials",
-      "confidence_score": 1.0
+      "target": "scraper_db_fetch_meroshare_asba_credentials"
     },
     {
       "relation": "rationale_for",
@@ -6862,9 +7268,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_97",
-      "target": "scraper_db_list_meroshare_credential_user_ids",
-      "confidence_score": 1.0
+      "target": "scraper_db_list_meroshare_credential_user_ids"
     },
     {
       "relation": "calls",
@@ -6927,9 +7333,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L130",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_130",
-      "target": "scraper_db_canonical_numeric_for_hash",
-      "confidence_score": 1.0
+      "target": "scraper_db_canonical_numeric_for_hash"
     },
     {
       "relation": "calls",
@@ -6948,9 +7354,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L144",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_144",
-      "target": "scraper_db_transaction_line_hash",
-      "confidence_score": 1.0
+      "target": "scraper_db_transaction_line_hash"
     },
     {
       "relation": "calls",
@@ -7046,9 +7452,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L226",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_226",
-      "target": "scraper_db_purchase_line_hash",
-      "confidence_score": 1.0
+      "target": "scraper_db_purchase_line_hash"
     },
     {
       "relation": "calls",
@@ -7067,9 +7473,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L251",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_251",
-      "target": "scraper_db_finalized_purchase_rows_to_payload",
-      "confidence_score": 1.0
+      "target": "scraper_db_finalized_purchase_rows_to_payload"
     },
     {
       "relation": "rationale_for",
@@ -7077,9 +7483,9 @@
       "source_file": "scraper_db.py",
       "source_location": "L304",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "scraper_db_rationale_304",
-      "target": "scraper_db_scrip_ltp_line_hash",
-      "confidence_score": 1.0
+      "target": "scraper_db_scrip_ltp_line_hash"
     },
     {
       "relation": "calls",
@@ -10761,9 +11167,9 @@
       "source_file": "CLAUDE.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "claude",
-      "target": "claude_graphify",
-      "confidence_score": 1.0
+      "target": "claude_graphify"
     },
     {
       "relation": "contains",
@@ -10771,9 +11177,9 @@
       "source_file": "README.md",
       "source_location": "L1",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme",
-      "target": "readme_nepse_portfolio",
-      "confidence_score": 1.0
+      "target": "readme_nepse_portfolio"
     },
     {
       "relation": "contains",
@@ -10781,9 +11187,9 @@
       "source_file": "README.md",
       "source_location": "L169",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_api_endpoints",
-      "confidence_score": 1.0
+      "target": "readme_api_endpoints"
     },
     {
       "relation": "contains",
@@ -10791,9 +11197,9 @@
       "source_file": "README.md",
       "source_location": "L14",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_architecture",
-      "confidence_score": 1.0
+      "target": "readme_architecture"
     },
     {
       "relation": "contains",
@@ -10801,9 +11207,9 @@
       "source_file": "README.md",
       "source_location": "L35",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_data_flow",
-      "confidence_score": 1.0
+      "target": "readme_data_flow"
     },
     {
       "relation": "contains",
@@ -10811,9 +11217,9 @@
       "source_file": "README.md",
       "source_location": "L199",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_deploying_the_api",
-      "confidence_score": 1.0
+      "target": "readme_deploying_the_api"
     },
     {
       "relation": "contains",
@@ -10821,9 +11227,9 @@
       "source_file": "README.md",
       "source_location": "L219",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_deploying_the_frontend",
-      "confidence_score": 1.0
+      "target": "readme_deploying_the_frontend"
     },
     {
       "relation": "contains",
@@ -10831,9 +11237,9 @@
       "source_file": "README.md",
       "source_location": "L73",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_environment_variables",
-      "confidence_score": 1.0
+      "target": "readme_environment_variables"
     },
     {
       "relation": "contains",
@@ -10841,9 +11247,9 @@
       "source_file": "README.md",
       "source_location": "L109",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_local_development",
-      "confidence_score": 1.0
+      "target": "readme_local_development"
     },
     {
       "relation": "contains",
@@ -10851,9 +11257,9 @@
       "source_file": "README.md",
       "source_location": "L48",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_main_files",
-      "confidence_score": 1.0
+      "target": "readme_main_files"
     },
     {
       "relation": "contains",
@@ -10861,9 +11267,9 @@
       "source_file": "README.md",
       "source_location": "L277",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_portfolio_math",
-      "confidence_score": 1.0
+      "target": "readme_portfolio_math"
     },
     {
       "relation": "contains",
@@ -10871,9 +11277,9 @@
       "source_file": "README.md",
       "source_location": "L243",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_scheduled_scraping",
-      "confidence_score": 1.0
+      "target": "readme_scheduled_scraping"
     },
     {
       "relation": "contains",
@@ -10881,9 +11287,9 @@
       "source_file": "README.md",
       "source_location": "L135",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_scraper_cli",
-      "confidence_score": 1.0
+      "target": "readme_scraper_cli"
     },
     {
       "relation": "contains",
@@ -10891,9 +11297,9 @@
       "source_file": "README.md",
       "source_location": "L5",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_stack",
-      "confidence_score": 1.0
+      "target": "readme_stack"
     },
     {
       "relation": "contains",
@@ -10901,9 +11307,9 @@
       "source_file": "README.md",
       "source_location": "L62",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_supabase_schema",
-      "confidence_score": 1.0
+      "target": "readme_supabase_schema"
     },
     {
       "relation": "contains",
@@ -10911,9 +11317,9 @@
       "source_file": "README.md",
       "source_location": "L261",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_tests",
-      "confidence_score": 1.0
+      "target": "readme_tests"
     },
     {
       "relation": "contains",
@@ -10921,9 +11327,9 @@
       "source_file": "README.md",
       "source_location": "L184",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "readme_nepse_portfolio",
-      "target": "readme_when_to_use_render",
-      "confidence_score": 1.0
+      "target": "readme_when_to_use_render"
     },
     {
       "relation": "implements",
@@ -10944,6 +11350,46 @@
       "weight": 1.0,
       "source": "readme_apply_purchase_costs_ts",
       "target": "readme_portfolio_math"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "source": "runbook",
+      "target": "runbook_operations_runbook",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L6",
+      "weight": 1.0,
+      "source": "runbook_operations_runbook",
+      "target": "runbook_1_meroshare_portfolio_scrape_supabase",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L36",
+      "weight": 1.0,
+      "source": "runbook_operations_runbook",
+      "target": "runbook_2_market_data_csv_crons_launchd",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "RUNBOOK.md",
+      "source_location": "L51",
+      "weight": 1.0,
+      "source": "runbook_2_market_data_csv_crons_launchd",
+      "target": "runbook_gotcha_launchd_log_path_must_be_outside_desktop",
+      "confidence_score": 1.0
     },
     {
       "relation": "references",
@@ -11360,5 +11806,5 @@
       "source_file": "README.md"
     }
   ],
-  "built_at_commit": "02756f399ea075fb13b75b29ba89ec6687e2451d"
+  "built_at_commit": "5340cc97656596a9d1eb7a299b6bc1327507afba"
 }
